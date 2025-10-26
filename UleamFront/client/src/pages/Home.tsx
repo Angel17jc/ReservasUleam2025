@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchEstadisticasGenerales } from '@/api/graphql/queries/reportes';
 import { espaciosApi } from '@/api/rest/espaciosApi';
 import { reservasApi } from '@/api/rest/reservasApi';
+import { useLocation } from 'wouter';
 
 const accentByCategory: Record<string, { from: string; to: string; icon: JSX.Element }> = {
   Auditorio: { from: '#E63946', to: '#C1121F', icon: <Building2 className="text-white" size={20} /> },
@@ -17,6 +18,7 @@ const accentByCategory: Record<string, { from: string; to: string; icon: JSX.Ele
 
 export default function Home() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
 
   const { data: stats } = useQuery({
     queryKey: ['estadisticas-dashboard'],
@@ -89,7 +91,7 @@ export default function Home() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold text-foreground">Espacios Destacados</h2>
-          <Button variant="outline" data-testid="button-view-all-spaces">
+          <Button variant="outline" data-testid="button-view-all-spaces" onClick={() => navigate('/app/espacios')}>
             Ver Todos
           </Button>
         </div>
@@ -111,7 +113,7 @@ export default function Home() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold text-foreground">Mis Próximas Reservas</h2>
-          <Button data-testid="button-new-reservation">
+          <Button data-testid="button-new-reservation" onClick={() => navigate('/app/reservas/nueva')}>
             Nueva Reserva
           </Button>
         </div>

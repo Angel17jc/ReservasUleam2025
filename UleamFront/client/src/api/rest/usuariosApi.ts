@@ -1,14 +1,14 @@
 import { PagedResult, isRestConfigured, restClient } from './client';
 import { UserProfile } from './authApi';
 
-export type UsuarioInput = Omit<UserProfile, 'id'> & { password?: string };
+export type UsuarioInput = Omit<UserProfile, 'id' | 'role'> & { role?: UserProfile['role']; password?: string };
 
 export const usuariosApi = {
-  async list(params?: { page?: number; pageSize?: number; rol?: string; search?: string }): Promise<PagedResult<UserProfile>> {
+  async list(params?: { page?: number; pageSize?: number; role?: string; search?: string }): Promise<PagedResult<UserProfile>> {
     if (!isRestConfigured()) {
       return {
         items: [
-          { id: 'mock-user', nombre: 'Usuario Demo', email: 'demo@uleam.edu.ec', rol: 'admin', estado: 'activo' },
+          { id: 'mock-user', nombre: 'Usuario Demo', email: 'demo@uleam.edu.ec', role: 'admin', estado: 'activo' },
         ],
         total: 1,
         page: 1,
@@ -20,7 +20,7 @@ export const usuariosApi = {
   },
   async detail(id: string): Promise<UserProfile> {
     if (!isRestConfigured()) {
-      return { id, nombre: 'Usuario Demo', email: 'demo@uleam.edu.ec', rol: 'usuario', estado: 'activo' };
+      return { id, nombre: 'Usuario Demo', email: 'demo@uleam.edu.ec', role: 'user', estado: 'activo' };
     }
 
     return restClient.get<UserProfile>(`/usuarios/${id}`);
@@ -34,7 +34,7 @@ export const usuariosApi = {
   },
   async create(payload: UsuarioInput): Promise<UserProfile> {
     if (!isRestConfigured()) {
-      return { id: `mock-${Date.now()}`, ...payload } as UserProfile;
+      return { id: `mock-${Date.now()}`, role: payload.role ?? 'user', ...payload } as UserProfile;
     }
 
     return restClient.post<UserProfile>('/usuarios', payload);

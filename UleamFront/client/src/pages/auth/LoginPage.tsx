@@ -1,37 +1,18 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { LoginForm } from '@/components/auth/LoginDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 
 export default function LoginPage() {
-  const { login, isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/');
-  }, [isAuthenticated, navigate]);
-  const [email, setEmail] = useState('demo@uleam.edu.ec');
-  const [password, setPassword] = useState('password');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      await login({ email, password });
-      navigate('/');
-    } catch (err) {
-      setError((err as Error).message ?? 'No se pudo iniciar sesión');
-    } finally {
-      setLoading(false);
+    if (isAuthenticated) {
+      navigate(isAdmin ? '/admin/dashboard' : '/app/inicio');
     }
-  };
-
-  if (isAuthenticated) return null;
+  }, [isAuthenticated, isAdmin, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
@@ -39,33 +20,15 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Iniciar sesión</CardTitle>
           <p className="text-muted-foreground text-sm">
-            Autentica contra el servicio REST externo (con fallback mock hasta conectar el backend real).
+            Puedes iniciar también desde el botón del header; esta ruta queda para accesos directos.
           </p>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-3">
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="correo@uleam.edu.ec"
-              required
-            />
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-            {error && <p className="text-destructive text-sm">{error}</p>}
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Ingresando...' : 'Entrar'}
-            </Button>
-          </CardFooter>
-        </form>
+        <CardContent>
+          <LoginForm />
+        </CardContent>
+        <CardFooter className="text-xs text-muted-foreground">
+          demo@uleam.edu.ec / demo123 (user) · admin@uleam.edu.ec / admin123 (admin)
+        </CardFooter>
       </Card>
     </div>
   );

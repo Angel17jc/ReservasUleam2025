@@ -16,7 +16,7 @@ export default function PerfilUsuarioPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-muted-foreground">Email: {user?.email ?? '—'}</p>
-          <p className="text-muted-foreground">Rol: {user?.rol ?? '—'} {isAdmin && '(admin)'}</p>
+          <p className="text-muted-foreground">Rol: {user?.role ?? '—'} {isAdmin && '(admin)'}</p>
           <Button variant="outline" onClick={logout}>Cerrar sesión</Button>
         </CardContent>
       </Card>

@@ -27,34 +27,35 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { useAuth } from '@/contexts/AuthContext';
+import { Link } from 'wouter';
 
-// Elementos del menú para usuarios normales
 const userMenuItems = [
-  { title: 'Inicio', url: '/', icon: Home },
-  { title: 'Explorar Espacios', url: '/espacios', icon: Building2 },
-  { title: 'Mis Reservas', url: '/reservas', icon: Calendar },
-  { title: 'Nueva Reserva', url: '/reservas/nueva', icon: CalendarPlus },
-  { title: 'Calendario', url: '/calendario', icon: CalendarDays },
-  { title: 'Notificaciones', url: '/notificaciones', icon: Bell },
-  { title: 'Mi Perfil', url: '/perfil', icon: User },
+  { title: 'Inicio', url: '/app/inicio', icon: Home },
+  { title: 'Explorar Espacios', url: '/app/espacios', icon: Building2 },
+  { title: 'Mis Reservas', url: '/app/reservas', icon: Calendar },
+  { title: 'Nueva Reserva', url: '/app/reservas/nueva', icon: CalendarPlus },
+  { title: 'Notificaciones', url: '/app/notificaciones', icon: Bell },
+  { title: 'Mi Perfil', url: '/app/perfil', icon: User },
 ];
 
-// Elementos del menú adicionales para administradores
 const adminMenuItems = [
-  { title: 'Panel de Administración', url: '/admin', icon: Shield },
+  { title: 'Panel de Administración', url: '/admin/dashboard', icon: Shield },
   { title: 'Gestión de Usuarios', url: '/admin/usuarios', icon: Users },
   { title: 'Gestión de Espacios', url: '/admin/espacios', icon: Building2 },
   { title: 'Gestión de Categorías', url: '/admin/categorias', icon: BookOpen },
-  { title: 'Tipos de Evento', url: '/admin/tipos-evento', icon: Target },
+  { title: 'Tipos de Evento', url: '/admin/eventos', icon: Target },
   { title: 'Bloqueos de Espacios', url: '/admin/bloqueos', icon: PauseCircle },
-  { title: 'Aprobar Reservas', url: '/admin/aprobar-reservas', icon: CheckCircle },
+  { title: 'Aprobar Reservas', url: '/admin/aprobaciones', icon: CheckCircle },
   { title: 'Reportes y Estadísticas', url: '/admin/reportes', icon: BarChart3 },
   { title: 'Configuración', url: '/admin/configuracion', icon: Settings },
 ];
 
-export function AppSidebar() {
-  const { isAdmin } = useAuth();
+interface AppSidebarProps {
+  variant: 'user' | 'admin';
+}
+
+export function AppSidebar({ variant }: AppSidebarProps) {
+  const showAdmin = variant === 'admin';
 
   return (
     <Sidebar>
@@ -77,10 +78,10 @@ export function AppSidebar() {
               {userMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                    <a href={item.url} className="flex items-center gap-3">
+                    <Link href={item.url} className="flex items-center gap-3">
                       <item.icon size={20} />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -88,7 +89,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isAdmin && (
+        {showAdmin && (
           <>
             <SidebarSeparator />
             <SidebarGroup>
@@ -98,10 +99,10 @@ export function AppSidebar() {
                   {adminMenuItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild data-testid={`link-admin-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                        <a href={item.url} className="flex items-center gap-3">
+                        <Link href={item.url} className="flex items-center gap-3">
                           <item.icon size={20} />
                           <span>{item.title}</span>
-                        </a>
+                        </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}

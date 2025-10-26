@@ -8,10 +8,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  login: (credentials: Credentials) => Promise<void>;
+  login: (credentials: Credentials) => Promise<UserProfile>;
   logout: () => Promise<void>;
   setUser: (user: UserProfile | null) => void;
-  switchRole: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authStorage.setUser(authenticatedUser);
     setToken(newToken);
     setUser(authenticatedUser);
+    return authenticatedUser;
   };
 
   const logout = async () => {
@@ -62,27 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const switchRole = () => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const nextRole = prev.rol === 'admin' ? 'usuario' : 'admin';
-      const updated = { ...prev, rol: nextRole };
-      authStorage.setUser(updated);
-      return updated;
-    });
-  };
-
   const value = useMemo(
     () => ({
       user,
       token,
       isAuthenticated: Boolean(token && user),
-      isAdmin: user?.rol === 'admin',
+      isAdmin: user?.role === 'admin',
       isLoading,
       login,
       logout,
       setUser,
-      switchRole,
     }),
     [user, token, isLoading],
   );

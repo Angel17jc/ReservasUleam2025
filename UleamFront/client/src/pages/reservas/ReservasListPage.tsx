@@ -17,7 +17,7 @@ export default function ReservasListPage() {
           <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
           <p className="text-muted-foreground">Consultando al servicio GraphQL externo.</p>
         </div>
-        <Link href="/reservas/nueva">
+        <Link href="/app/reservas/nueva">
           <Button data-testid="link-new-reservation">Nueva Reserva</Button>
         </Link>
       </div>
