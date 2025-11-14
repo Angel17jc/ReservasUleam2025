@@ -26,12 +26,12 @@ export default function ReservaDetailPage({ params }: Props) {
         <ReservationCard
           id={data.id}
           espacio={data.espacioId}
-          usuario={data.usuario?.nombre}
+          usuario={data.usuarioId}
           fecha={data.fecha}
           horaInicio={data.horaInicio}
           horaFin={data.horaFin}
-          tipoEvento={data.estado}
-          estado={data.estado as any}
+          tipoEvento={data.titulo ?? data.tipoEvento}
+          estado={(data.estado ?? 'pendiente') as any}
           showActions={false}
         />
       )}

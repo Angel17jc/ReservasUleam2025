@@ -1,13 +1,14 @@
-# Credenciales de prueba (Mock)
+# Credenciales de prueba (backend real)
 
-Estas credenciales funcionan con el backend mock actual (sin servidor real). Úsalas para probar el flujo de login y roles.
+Usuarios sembrados en el backend (REST/GraphQL/WS). Contraseña para todos: `password123`.
 
-| Rol   | Email               | Password |
-|-------|---------------------|----------|
-| User  | `demo@uleam.edu.ec` | `demo123` |
-| Admin | `admin@uleam.edu.ec`| `admin123` |
+| Rol        | Email                   |
+|------------|-------------------------|
+| Admin      | `admin@uleam.edu.ec`    |
+| Profesor   | `profesor1@uleam.edu.ec`|
+| Estudiante | `estudiante1@uleam.edu.ec`|
 
-Cómo usarlas:
-- Inicia sesión desde el botón **“Iniciar sesión”** en el header (modal) o visita `/login`.
-- Si entras como admin serás redirigido a `/admin/dashboard`; como user a `/app/inicio`.
-- El header mostrará el menú de usuario y, si eres admin, la opción **Ir al Panel de Administración**.
+Notas:
+- El JWT es el mismo para REST/GraphQL/Socket.IO.
+- El menú admin solo aparece si `tipo_usuario_id === 1`.
+- Si quieres probar notificaciones/WS, inicia sesión y realiza reservas; los eventos llegan a `notificaciones:user:{id}` y `reservas:usuario:{id}`.

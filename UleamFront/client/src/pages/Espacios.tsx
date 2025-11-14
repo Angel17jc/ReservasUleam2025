@@ -10,45 +10,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Filter, Building2, Target, BookOpen, Users } from 'lucide-react';
+import { Search, Filter, Building2 } from 'lucide-react';
 import { espaciosApi } from '@/api/rest/espaciosApi';
 import type { Espacio } from '@/api/rest/espaciosApi';
+import { categoriasApi, type Categoria } from '@/api/rest/categoriasApi';
+import { useLocation } from 'wouter';
 
-const accentByCategory: Record<string, { from: string; to: string; icon: JSX.Element }> = {
-  Auditorio: { from: '#E63946', to: '#C1121F', icon: <Building2 className="text-white" size={20} /> },
-  Deportivo: { from: '#0EA5E9', to: '#0284C7', icon: <Target className="text-white" size={20} /> },
-  Laboratorio: { from: '#10B981', to: '#0F766E', icon: <Users className="text-white" size={20} /> },
-  Sala: { from: '#6366F1', to: '#4338CA', icon: <Building2 className="text-white" size={20} /> },
-  Biblioteca: { from: '#F97316', to: '#EA580C', icon: <BookOpen className="text-white" size={20} /> },
-};
+const accent = { from: '#E63946', to: '#C1121F', icon: <Building2 className="text-white" size={20} /> };
 
 export default function Espacios() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [category, setCategory] = useState('all');
+  const [categoryId, setCategoryId] = useState<string>('all');
+  const [, navigate] = useLocation();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['espacios', category, searchTerm],
-    queryFn: () => espaciosApi.list({ categoria: category === 'all' ? undefined : category, search: searchTerm }),
+    queryKey: ['espacios', categoryId, searchTerm],
+    queryFn: () =>
+      espaciosApi.list({
+        categoria_id: categoryId === 'all' ? undefined : Number(categoryId),
+      }),
+  });
+  const { data: categoriasData } = useQuery({
+    queryKey: ['categorias-espacio'],
+    queryFn: () => categoriasApi.list(),
   });
 
   const spaces = useMemo<Espacio[]>(() => data?.items ?? [], [data]);
+  const categorias = useMemo<Categoria[]>(() => categoriasData ?? [], [categoriasData]);
+  const categoriaNombre = (id?: number) =>
+    categorias.find((c) => c.id === id)?.nombre ?? `Categoría #${id ?? '?'}`;
+
+  const handleReserve = (spaceId: string) => {
+    navigate(`/app/reservas/nueva?espacio_id=${spaceId}`);
+  };
 
   const filteredSpaces = useMemo(() => {
     return spaces.filter((space) => {
       const matchesSearch =
         space.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         space.codigo.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = category === 'all' || space.categoria === category;
+      const matchesCategory = categoryId === 'all' || String(space.categoriaId) === categoryId;
       return matchesSearch && matchesCategory;
     });
-  }, [spaces, searchTerm, category]);
+  }, [spaces, searchTerm, categoryId]);
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Explorar Espacios</h1>
         <p className="text-muted-foreground mt-2">
-          Consumimos el servicio REST externo (mock mientras no haya endpoint real).
+          Consumimos el servicio REST externo para listar espacios reales.
         </p>
       </div>
 
@@ -63,18 +74,18 @@ export default function Espacios() {
             data-testid="input-search"
           />
         </div>
-        <Select value={category} onValueChange={setCategory}>
+        <Select value={categoryId} onValueChange={setCategoryId}>
           <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-category">
             <Filter size={16} className="mr-2" />
             <SelectValue placeholder="Categoría" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las categorías</SelectItem>
-            <SelectItem value="Auditorio">Auditorio</SelectItem>
-            <SelectItem value="Laboratorio">Laboratorio</SelectItem>
-            <SelectItem value="Sala">Sala</SelectItem>
-            <SelectItem value="Deportivo">Deportivo</SelectItem>
-            <SelectItem value="Biblioteca">Biblioteca</SelectItem>
+            {categorias.map((cat) => (
+              <SelectItem key={cat.id} value={String(cat.id)}>
+                {cat.nombre} (#{cat.id})
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Button variant="outline" data-testid="button-filter">
@@ -91,17 +102,19 @@ export default function Espacios() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredSpaces.map((space) => {
-          const accent = accentByCategory[space.categoria] ?? accentByCategory.Auditorio;
-          return (
-            <SpaceCard
-              key={space.id}
-              {...space}
-              accentColors={{ from: accent.from, to: accent.to }}
-              bannerIcon={accent.icon}
-            />
-          );
-        })}
+        {filteredSpaces.map((space) => (
+          <SpaceCard
+            key={space.id}
+            id={space.id}
+            nombre={space.nombre}
+            codigo={space.codigo}
+            categoria={categoriaNombre(space.categoriaId)}
+            capacidad={space.capacidadMaxima}
+            accentColors={{ from: accent.from, to: accent.to }}
+            bannerIcon={accent.icon}
+            onReserve={handleReserve}
+          />
+        ))}
       </div>
     </div>
   );

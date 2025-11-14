@@ -38,8 +38,15 @@ export function ReservationCard({
   showActions = true,
   className,
 }: ReservationCardProps) {
+  // Normalizar estado entrante (puede venir como "Aprobada" desde backend GraphQL/REST)
+  const normalizedEstado: ReservaEstado = (() => {
+    if (!estado) return 'pendiente';
+    const lower = estado.toLowerCase();
+    if (lower === 'en curso') return 'enCurso';
+    return lower as ReservaEstado;
+  })();
   // Determinar si se puede cancelar la reserva
-  const canCancel = estado === 'pendiente' || estado === 'aprobada';
+  const canCancel = normalizedEstado === 'pendiente' || normalizedEstado === 'aprobada';
 
   return (
     <Card className={cn('hover-elevate', className)} data-testid={`card-reservation-${id}`}>
@@ -49,7 +56,7 @@ export function ReservationCard({
             <h3 className="text-lg font-semibold text-foreground">{espacio}</h3>
             <p className="text-sm text-muted-foreground">{tipoEvento}</p>
           </div>
-          <StatusBadge estado={estado} />
+          <StatusBadge estado={normalizedEstado} />
         </div>
 
         <div className="space-y-2 mb-4">
@@ -77,7 +84,7 @@ export function ReservationCard({
 
         {showActions && (
           <div className="flex gap-2 mt-4">
-            {onApprove && estado === 'pendiente' && (
+            {onApprove && normalizedEstado === 'pendiente' && (
               <Button
                 size="sm"
                 className="bg-reserva-aprobada hover:bg-reserva-aprobada/90"
@@ -87,7 +94,7 @@ export function ReservationCard({
                 Aprobar
               </Button>
             )}
-            {onReject && estado === 'pendiente' && (
+            {onReject && normalizedEstado === 'pendiente' && (
               <Button
                 size="sm"
                 variant="destructive"

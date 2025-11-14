@@ -4,57 +4,78 @@ export type Espacio = {
   id: string;
   nombre: string;
   codigo: string;
-  categoria: string;
-  capacidad: number;
-  ubicacion?: string;
-  estado?: 'activo' | 'inactivo';
+  categoriaId: number;
+  capacidadMaxima: number;
+  imagenUrl?: string | null;
+  estado?: 'activo' | 'inactivo' | string;
 };
 
-export type EspacioInput = Omit<Espacio, 'id'>;
+export type EspacioInput = {
+  codigo: string;
+  nombre: string;
+  categoria_id: number;
+  capacidad_maxima: number;
+  imagen_url?: string | null;
+  estado?: string;
+};
 
-const mockEspacios: Espacio[] = [
-  { id: '1', nombre: 'Auditorio Principal', codigo: 'AUD-001', categoria: 'Auditorio', capacidad: 300, ubicacion: 'Edificio A', estado: 'activo' },
-  { id: '2', nombre: 'Laboratorio de Cómputo 1', codigo: 'LAB-001', categoria: 'Laboratorio', capacidad: 30, ubicacion: 'Edificio B', estado: 'activo' },
-  { id: '3', nombre: 'Cancha de Fútbol', codigo: 'DEP-001', categoria: 'Deportivo', capacidad: 50, ubicacion: 'Área Deportiva', estado: 'activo' },
-];
+type BackendEspacio = {
+  id: number;
+  codigo: string;
+  nombre: string;
+  categoria_id: number;
+  capacidad_maxima: number;
+  imagen_url?: string | null;
+  estado?: string;
+};
+
+function mapEspacio(e: BackendEspacio): Espacio {
+  return {
+    id: String(e.id),
+    codigo: e.codigo,
+    nombre: e.nombre,
+    categoriaId: e.categoria_id,
+    capacidadMaxima: e.capacidad_maxima,
+    imagenUrl: e.imagen_url,
+    estado: e.estado,
+  };
+}
 
 export const espaciosApi = {
-  async list(params?: { page?: number; pageSize?: number; categoria?: string; search?: string }): Promise<PagedResult<Espacio>> {
+  async list(params?: { categoria_id?: number; estado?: string }): Promise<PagedResult<Espacio>> {
     if (!isRestConfigured()) {
-      return {
-        items: mockEspacios,
-        total: mockEspacios.length,
-        page: params?.page ?? 1,
-        pageSize: params?.pageSize ?? mockEspacios.length,
-      };
+      throw new Error('Configura VITE_REST_BASE_URL para consumir /api/espacios');
     }
 
-    return restClient.get<PagedResult<Espacio>>('/espacios', { query: params });
+    const items = await restClient.get<BackendEspacio[]>('/espacios', { query: params });
+    const mapped = items.map(mapEspacio);
+    return {
+      items: mapped,
+      total: mapped.length,
+      page: 1,
+      pageSize: mapped.length,
+    };
   },
   async detail(id: string): Promise<Espacio> {
     if (!isRestConfigured()) {
-      return mockEspacios.find((e) => e.id === id) ?? mockEspacios[0];
+      throw new Error('Configura VITE_REST_BASE_URL para consumir /api/espacios/{id}');
     }
-
-    return restClient.get<Espacio>(`/espacios/${id}`);
+    const data = await restClient.get<BackendEspacio>(`/espacios/${id}`);
+    return mapEspacio(data);
   },
   async create(payload: EspacioInput): Promise<Espacio> {
     if (!isRestConfigured()) {
-      const created: Espacio = { ...payload, id: `mock-${Date.now()}` };
-      mockEspacios.push(created);
-      return created;
+      throw new Error('Configura VITE_REST_BASE_URL para consumir /api/espacios');
     }
-
-    return restClient.post<Espacio>('/espacios', payload);
+    const created = await restClient.post<BackendEspacio>('/espacios', payload);
+    return mapEspacio(created);
   },
   async update(id: string, payload: Partial<EspacioInput>): Promise<Espacio> {
     if (!isRestConfigured()) {
-      const current = mockEspacios.find((e) => e.id === id) ?? mockEspacios[0];
-      Object.assign(current, payload);
-      return current;
+      throw new Error('Configura VITE_REST_BASE_URL para consumir /api/espacios');
     }
-
-    return restClient.put<Espacio>(`/espacios/${id}`, payload);
+    const updated = await restClient.put<BackendEspacio>(`/espacios/${id}`, payload);
+    return mapEspacio(updated);
   },
   async remove(id: string): Promise<void> {
     if (!isRestConfigured()) return;

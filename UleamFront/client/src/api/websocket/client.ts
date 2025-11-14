@@ -1,3 +1,4 @@
+import { io, Socket } from 'socket.io-client';
 import { env, ensureEnvValue } from '@/config/env';
 import { authStorage } from '@/lib/auth-storage';
 
@@ -6,15 +7,16 @@ export type WsEvent =
   | 'reserva_creada'
   | 'reserva_aprobada'
   | 'reserva_rechazada'
+  | 'reserva_cancelada'
+  | 'reserva_actualizada'
   | 'stats_update'
-  | 'disponibilidad_actualizada';
+  | 'disponibilidad_actualizada'
+  | 'recordatorio';
 
-export type WsMessage = { type: WsEvent; payload: unknown };
-
-type Listener = (payload: unknown) => void;
+type Listener = (payload: any) => void;
 
 export class WebSocketClient {
-  private socket: WebSocket | null = null;
+  private socket: Socket | null = null;
   private listeners: Map<WsEvent, Set<Listener>> = new Map();
   private status: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
 
@@ -24,39 +26,46 @@ export class WebSocketClient {
     return this.status;
   }
 
-  connect() {
+  connect(defaultChannels: string[] = []) {
     if (this.status === 'connected' || this.status === 'connecting') return;
     const baseUrl = ensureEnvValue('wsUrl');
     const token = this.getToken();
-    const url = new URL(baseUrl);
-    if (token) {
-      url.searchParams.set('token', token);
-    }
 
     this.status = 'connecting';
-    this.socket = new WebSocket(url.toString());
-
-    this.socket.addEventListener('open', () => {
-      this.status = 'connected';
+    this.socket = io(baseUrl, {
+      transports: ['websocket'],
+      auth: { token },
+      query: token ? { token } : undefined,
     });
 
-    this.socket.addEventListener('message', (event) => {
-      try {
-        const message = JSON.parse(event.data) as WsMessage;
-        this.emit(message.type, message.payload);
-      } catch (error) {
-        console.warn('[ws] Mensaje no parseable', error);
+    this.socket.on('connect', () => {
+      this.status = 'connected';
+      if (defaultChannels.length) {
+        this.socket?.emit('subscribe', { channels: defaultChannels });
       }
     });
-
-    this.socket.addEventListener('close', () => {
+    this.socket.on('disconnect', () => {
       this.status = 'disconnected';
-      this.socket = null;
+    });
+
+    const forward: WsEvent[] = [
+      'nueva_notificacion',
+      'reserva_creada',
+      'reserva_aprobada',
+      'reserva_rechazada',
+      'reserva_cancelada',
+      'reserva_actualizada',
+      'stats_update',
+      'disponibilidad_actualizada',
+      'recordatorio',
+    ];
+    forward.forEach((event) => {
+      this.socket?.on(event, (payload: any) => this.emit(event, payload));
     });
   }
 
   disconnect() {
-    this.socket?.close();
+    this.socket?.disconnect();
     this.socket = null;
     this.status = 'disconnected';
   }
@@ -66,17 +75,10 @@ export class WebSocketClient {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(listener);
-
     return () => this.listeners.get(event)?.delete(listener);
   }
 
-  send(message: WsMessage) {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(message));
-    }
-  }
-
-  private emit(event: WsEvent, payload: unknown) {
+  emit(event: WsEvent, payload: any) {
     this.listeners.get(event)?.forEach((listener) => listener(payload));
   }
 }

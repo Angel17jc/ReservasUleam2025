@@ -10,7 +10,7 @@ interface StatusBadgeProps {
 }
 
 // Configuración de colores y etiquetas para cada estado
-const estadoConfig = {
+const estadoConfig: Record<ReservaEstado, { label: string; className: string }> = {
   pendiente: {
     label: 'Pendiente',
     className: 'bg-reserva-pendiente/20 text-reserva-pendiente border-reserva-pendiente/30',
@@ -38,13 +38,15 @@ const estadoConfig = {
 };
 
 export function StatusBadge({ estado, className }: StatusBadgeProps) {
-  const config = estadoConfig[estado];
-  
+  // Normalizar el estado que viene del backend (puede llegar en Title Case o undefined)
+  const normalized = (estado || 'pendiente').toLowerCase() as ReservaEstado;
+  const config = estadoConfig[normalized] ?? estadoConfig.pendiente;
+
   return (
     <Badge 
       variant="outline" 
       className={cn(config.className, className)}
-      data-testid={`badge-${estado}`}
+      data-testid={`badge-${normalized}`}
     >
       {config.label}
     </Badge>

@@ -2,6 +2,7 @@ import { env, ensureEnvValue } from '@/config/env';
 import { authStorage } from '@/lib/auth-storage';
 
 export type RestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+const API_PREFIX = '/api';
 
 export interface RestRequestOptions {
   method?: RestMethod;
@@ -14,7 +15,8 @@ export interface RestRequestOptions {
 function buildUrl(path: string, query?: RestRequestOptions['query']) {
   const base = ensureEnvValue('restBaseUrl').replace(/\/$/, '');
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const url = new URL(`${base}${normalizedPath}`);
+  const withPrefix = normalizedPath.startsWith(API_PREFIX) ? normalizedPath : `${API_PREFIX}${normalizedPath}`;
+  const url = new URL(`${base}${withPrefix}`);
 
   if (query) {
     Object.entries(query).forEach(([key, value]) => {

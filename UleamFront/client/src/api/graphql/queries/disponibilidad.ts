@@ -1,26 +1,51 @@
 import { graphqlRequest, isGraphqlConfigured } from '../client';
 
-export type DisponibilidadItem = {
+export type DisponibilidadSlot = {
+  hora_inicio: string;
+  hora_fin: string;
+};
+
+export type DisponibilidadPayload = {
+  espacio_id: number;
+  espacio_nombre: string;
   fecha: string;
-  disponible: boolean;
+  dia_semana: string;
+  ocupados: Array<DisponibilidadSlot & { id: number; estado: string; titulo?: string; usuario_id: number }>;
+  libres: DisponibilidadSlot[];
 };
 
 const DISPONIBILIDAD_QUERY = /* GraphQL */ `
-  query DisponibilidadEspacio($espacioId: ID!, $desde: String, $hasta: String) {
-    disponibilidadEspacio(espacioId: $espacioId, desde: $desde, hasta: $hasta) {
+  query Disponibilidad($espacio_id: Int!, $fecha: String!, $incluir_pendientes: Boolean) {
+    disponibilidad(espacio_id: $espacio_id, fecha: $fecha, incluir_pendientes: $incluir_pendientes) {
+      espacio_id
+      espacio_nombre
       fecha
-      disponible
+      dia_semana
+      ocupados {
+        id
+        estado
+        hora_inicio
+        hora_fin
+        titulo
+        usuario_id
+      }
+      libres {
+        hora_inicio
+        hora_fin
+      }
     }
   }
 `;
 
-export async function fetchDisponibilidad(espacioId: string, rango?: { desde?: string; hasta?: string }) {
+export async function fetchDisponibilidad(espacioId: number, fecha: string, incluirPendientes = true) {
   if (!isGraphqlConfigured()) {
-    return [] as DisponibilidadItem[];
+    return null as DisponibilidadPayload | null;
   }
 
-  return graphqlRequest<{ disponibilidadEspacio: DisponibilidadItem[] }>(DISPONIBILIDAD_QUERY, {
-    espacioId,
-    ...rango,
-  }).then((res) => res.disponibilidadEspacio);
+  const res = await graphqlRequest<{ disponibilidad: DisponibilidadPayload }>(DISPONIBILIDAD_QUERY, {
+    espacio_id: espacioId,
+    fecha,
+    incluir_pendientes: incluirPendientes,
+  });
+  return res.disponibilidad;
 }

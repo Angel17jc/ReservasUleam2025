@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { SpaceCard } from '@/components/SpaceCard';
 import { ReservationCard } from '@/components/ReservationCard';
@@ -9,6 +9,7 @@ import { fetchEstadisticasGenerales } from '@/api/graphql/queries/reportes';
 import { espaciosApi } from '@/api/rest/espaciosApi';
 import { reservasApi } from '@/api/rest/reservasApi';
 import { useLocation } from 'wouter';
+import { useWebSocketSubscription } from '@/hooks/useWebSocket';
 
 const accentByCategory: Record<string, { from: string; to: string; icon: JSX.Element }> = {
   Auditorio: { from: '#E63946', to: '#C1121F', icon: <Building2 className="text-white" size={20} /> },
@@ -19,24 +20,48 @@ const accentByCategory: Record<string, { from: string; to: string; icon: JSX.Ele
 export default function Home() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: stats } = useQuery({
     queryKey: ['estadisticas-dashboard'],
     queryFn: () => fetchEstadisticasGenerales(),
+    enabled: false, // Stats de admin no se usan para tarjetas personales
   });
 
   const { data: espacios } = useQuery({
     queryKey: ['espacios-destacados'],
-    queryFn: () => espaciosApi.list({ pageSize: 3 }),
+    queryFn: () => espaciosApi.list(),
   });
 
   const { data: reservas } = useQuery({
-    queryKey: ['reservas-proximas'],
-    queryFn: () => reservasApi.list({ pageSize: 2 }),
+    queryKey: ['reservas-proximas', user?.id],
+    queryFn: () => reservasApi.list({ usuario_id: Number(user?.id) || undefined }),
+    enabled: Boolean(user?.id),
   });
 
   const featuredSpaces = useMemo(() => espacios?.items ?? [], [espacios]);
   const upcomingReservations = useMemo(() => reservas?.items ?? [], [reservas]);
+  const misReservasCount = upcomingReservations.length;
+  const aprobadas = upcomingReservations.filter((r) => (r.estado ?? '').toLowerCase() === 'aprobada').length;
+  const tasaAprobacion = misReservasCount > 0 ? Math.round((aprobadas / misReservasCount) * 100) : 0;
+  const proximaFecha = upcomingReservations
+    .map((r) => r.fecha)
+    .sort()
+    .find(Boolean);
+
+  // Suscribirse a eventos de reservas para actualizar dashboard en vivo
+  const invalidateUserReservas = () =>
+    queryClient.invalidateQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'reservas-proximas',
+    });
+  useWebSocketSubscription('reserva_creada', invalidateUserReservas);
+  useWebSocketSubscription('reserva_aprobada', invalidateUserReservas);
+  useWebSocketSubscription('reserva_rechazada', invalidateUserReservas);
+  useWebSocketSubscription('reserva_cancelada', invalidateUserReservas);
+  useWebSocketSubscription('reserva_actualizada', invalidateUserReservas);
+  useWebSocketSubscription('stats_update', () => {
+    queryClient.invalidateQueries({ queryKey: ['estadisticas-dashboard'] });
+  });
 
   return (
     <div className="p-6 space-y-8">
@@ -54,7 +79,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Mis Reservas</p>
-              <p className="text-3xl font-bold text-foreground mt-2">{stats?.totalReservas ?? 0}</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{misReservasCount}</p>
             </div>
             <Calendar className="text-primary" size={32} />
           </div>
@@ -63,7 +88,9 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Tasa Aprobación</p>
-              <p className="text-3xl font-bold text-foreground mt-2">{stats?.tasaAprobacion ?? 0}%</p>
+              <p className="text-3xl font-bold text-foreground mt-2">
+                {tasaAprobacion}%
+              </p>
             </div>
             <TrendingUp className="text-blue-600" size={32} />
           </div>
@@ -72,7 +99,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Próxima Reserva</p>
-              <p className="text-3xl font-bold text-foreground mt-2">{upcomingReservations[0]?.fecha ?? '—'}</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{proximaFecha ?? '—'}</p>
             </div>
             <Clock className="text-green-600" size={32} />
           </div>
@@ -81,7 +108,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Espacio más usado</p>
-              <p className="text-3xl font-bold text-foreground mt-2">{stats?.espacioMasUsado ?? '—'}</p>
+              <p className="text-3xl font-bold text-foreground mt-2">—</p>
             </div>
             <Building2 className="text-purple-600" size={32} />
           </div>
@@ -97,13 +124,18 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {featuredSpaces.map((space) => {
-            const accent = accentByCategory[space.categoria] ?? accentByCategory.Auditorio;
+            const accent = accentByCategory.Auditorio;
             return (
               <SpaceCard
                 key={space.id}
-                {...space}
+                id={space.id}
+                nombre={space.nombre}
+                codigo={space.codigo}
+                categoria={`Categoría #${space.categoriaId}`}
+                capacidad={space.capacidadMaxima}
                 accentColors={{ from: accent.from, to: accent.to }}
                 bannerIcon={accent.icon}
+                onReserve={(spaceId) => navigate(`/app/reservas/nueva?espacio_id=${spaceId}`)}
               />
             );
           })}
@@ -127,9 +159,9 @@ export default function Home() {
               fecha={reservation.fecha}
               horaInicio={reservation.horaInicio}
               horaFin={reservation.horaFin}
-              tipoEvento={reservation.tipoEvento ?? 'Reserva'}
-              estado={reservation.estado as any}
-              onCancel={() => console.log(`Cancelar ${reservation.id}`)}
+              tipoEvento={reservation.titulo ?? reservation.tipoEvento ?? 'Reserva'}
+              estado={(reservation.estado ?? 'pendiente') as any}
+              onCancel={() => reservasApi.cancel(reservation.id)}
             />
           ))}
           {upcomingReservations.length === 0 && (

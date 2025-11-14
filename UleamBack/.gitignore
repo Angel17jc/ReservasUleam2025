@@ -1,0 +1,58 @@
+# Global ignores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Environment and secrets
+.env
+.env.*
+*.env
+*.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.venv/
+venv/
+.envrc
+
+# Node / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# Go
+bin/
+*.out
+*.test
+
+# Tooling / OS
+.cache/
+.tox/
+.python-version
+
+# Project-specific
+attached_assets/*
+!attached_assets/.gitkeep
+!attached_assets/avatars/.gitkeep
+!attached_assets/espacios/.gitkeep
+
+# Editors backup
+*.orig
+*.rej

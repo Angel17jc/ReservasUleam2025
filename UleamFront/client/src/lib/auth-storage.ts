@@ -6,6 +6,7 @@ type StoredUser = {
   nombre: string;
   email: string;
   role: 'user' | 'admin';
+  tipoUsuarioNombre?: string;
 };
 
 function normalizeUser(value: any): StoredUser | null {
@@ -25,6 +26,7 @@ function normalizeUser(value: any): StoredUser | null {
     nombre: value.nombre ?? 'Usuario',
     email: value.email,
     role: role === 'admin' ? 'admin' : 'user',
+    tipoUsuarioNombre: value.tipoUsuarioNombre,
   };
 }
 

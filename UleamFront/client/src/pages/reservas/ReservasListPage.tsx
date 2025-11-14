@@ -3,11 +3,27 @@ import { fetchReservas } from '@/api/graphql/queries/reservas';
 import { ReservationCard } from '@/components/ReservationCard';
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
+import { useWebSocketSubscription } from '@/hooks/useWebSocket';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ReservasListPage() {
-  const { data: reservas = [], isLoading, error } = useQuery({
+  const queryClient = useQueryClient();
+  const { data: reservas = [], isLoading, error, refetch } = useQuery({
     queryKey: ['reservas'],
     queryFn: () => fetchReservas(),
+  });
+
+  useWebSocketSubscription('reserva_creada', () => {
+    queryClient.invalidateQueries({ queryKey: ['reservas'] });
+  });
+  useWebSocketSubscription('reserva_aprobada', () => {
+    queryClient.invalidateQueries({ queryKey: ['reservas'] });
+  });
+  useWebSocketSubscription('reserva_rechazada', () => {
+    queryClient.invalidateQueries({ queryKey: ['reservas'] });
+  });
+  useWebSocketSubscription('reserva_cancelada', () => {
+    queryClient.invalidateQueries({ queryKey: ['reservas'] });
   });
 
   return (
@@ -31,12 +47,12 @@ export default function ReservasListPage() {
             key={reserva.id}
             id={reserva.id}
             espacio={reserva.espacioId}
-            usuario={reserva.usuario?.nombre}
+            usuario={reserva.usuarioId}
             fecha={reserva.fecha}
             horaInicio={reserva.horaInicio}
             horaFin={reserva.horaFin}
-            tipoEvento={reserva.estado}
-            estado={reserva.estado as any}
+            tipoEvento={reserva.titulo ?? reserva.tipoEvento}
+            estado={(reserva.estado ?? 'pendiente') as any}
             showActions={false}
           />
         ))}

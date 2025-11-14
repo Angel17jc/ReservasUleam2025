@@ -23,6 +23,8 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "client", "src"),
     },
   },
+  // Lee variables de entorno desde el directorio raíz (donde está .env.local)
+  envDir: path.resolve(import.meta.dirname),
   root: path.resolve(import.meta.dirname, "client"),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist"),

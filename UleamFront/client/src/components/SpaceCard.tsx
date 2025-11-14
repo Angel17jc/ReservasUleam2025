@@ -20,6 +20,7 @@ interface SpaceCardProps {
     to: string;
   };
   bannerIcon?: ReactNode;
+  onReserve?: (spaceId: string) => void;
 }
 
 export function SpaceCard({
@@ -33,6 +34,7 @@ export function SpaceCard({
   className,
   accentColors,
   bannerIcon,
+  onReserve,
 }: SpaceCardProps) {
   const gradientFrom = accentColors?.from ?? '#E63946';
   const gradientTo = accentColors?.to ?? '#C1121F';
@@ -94,7 +96,7 @@ export function SpaceCard({
           className="w-full" 
           disabled={!disponible}
           data-testid={`button-reserve-${id}`}
-          onClick={() => console.log(`Reservar ${nombre}`)}
+          onClick={() => onReserve?.(id)}
         >
           Reservar
         </Button>

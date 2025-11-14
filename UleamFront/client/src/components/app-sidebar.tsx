@@ -10,10 +10,8 @@ import {
   Users,
   BookOpen,
   Target,
-  PauseCircle,
   CheckCircle,
   BarChart3,
-  Settings,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -44,10 +42,8 @@ const adminMenuItems = [
   { title: 'Gestión de Espacios', url: '/admin/espacios', icon: Building2 },
   { title: 'Gestión de Categorías', url: '/admin/categorias', icon: BookOpen },
   { title: 'Tipos de Evento', url: '/admin/eventos', icon: Target },
-  { title: 'Bloqueos de Espacios', url: '/admin/bloqueos', icon: PauseCircle },
   { title: 'Aprobar Reservas', url: '/admin/aprobaciones', icon: CheckCircle },
   { title: 'Reportes y Estadísticas', url: '/admin/reportes', icon: BarChart3 },
-  { title: 'Configuración', url: '/admin/configuracion', icon: Settings },
 ];
 
 interface AppSidebarProps {

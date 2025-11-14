@@ -1,72 +1,73 @@
 import { isRestConfigured, restClient } from './client';
 
 export type Credentials = { email: string; password: string };
-export type RegisterInput = Credentials & { nombre: string };
+export type RegisterInput = Credentials & { nombre: string; apellido?: string; telefono?: string; tipo_usuario_id?: number };
 
 export type UserProfile = {
   id: string;
   nombre: string;
+  apellido?: string;
   email: string;
   role: 'admin' | 'user';
   avatar?: string;
-  estado?: 'activo' | 'inactivo';
+  estado?: 'activo' | 'inactivo' | string;
+  tipoUsuarioId?: number;
+  tipoUsuarioNombre?: string;
 };
 
 export type AuthResponse = { token: string; user: UserProfile };
 
-const mockUsers: Record<string, UserProfile & { password: string }> = {
-  'demo@uleam.edu.ec': {
-    id: 'mock-user',
-    nombre: 'Usuario Demo',
-    email: 'demo@uleam.edu.ec',
-    password: 'demo123',
-    role: 'user',
-    estado: 'activo',
-  },
-  'admin@uleam.edu.ec': {
-    id: 'mock-admin',
-    nombre: 'Admin Demo',
-    email: 'admin@uleam.edu.ec',
-    password: 'admin123',
-    role: 'admin',
-    estado: 'activo',
-  },
+type BackendAuthResponse = {
+  access_token: string;
+  token_type: string;
+  user: {
+    id: number;
+    email: string;
+    nombre: string;
+    apellido?: string;
+    telefono?: string;
+    tipo_usuario_id: number;
+    tipo_usuario?: { id: number; nombre: string };
+    estado?: string;
+    avatar_url?: string;
+  };
 };
+
+function mapBackendUser(input: BackendAuthResponse['user']): UserProfile {
+  return {
+    id: String(input.id),
+    nombre: input.nombre,
+    apellido: input.apellido,
+    email: input.email,
+    role: input.tipo_usuario_id === 1 ? 'admin' : 'user',
+    estado: input.estado,
+    avatar: input.avatar_url,
+    tipoUsuarioId: input.tipo_usuario_id,
+    tipoUsuarioNombre: input.tipo_usuario?.nombre,
+  };
+}
 
 export const authApi = {
   async login(input: Credentials): Promise<AuthResponse> {
     if (!isRestConfigured()) {
-      const match = mockUsers[input.email];
-      if (!match || match.password !== input.password) {
-        throw new Error('Credenciales inválidas (mock)');
-      }
-      const { password, ...user } = match;
-      return { token: 'mock-token', user };
+      throw new Error('Configura VITE_REST_BASE_URL para usar el backend REST');
     }
-
-    return restClient.post<AuthResponse>('/auth/login', input);
+    const res = await restClient.post<BackendAuthResponse>('/auth/login', input);
+    return { token: res.access_token, user: mapBackendUser(res.user) };
   },
   async register(input: RegisterInput): Promise<AuthResponse> {
     if (!isRestConfigured()) {
-      const user: UserProfile = {
-        id: `mock-${Date.now()}`,
-        nombre: input.nombre,
-        email: input.email,
-        role: 'user',
-        estado: 'activo',
-      };
-      return { token: 'mock-token', user };
+      throw new Error('Configura VITE_REST_BASE_URL para usar el backend REST');
     }
-
-    return restClient.post<AuthResponse>('/auth/register', input);
+    const res = await restClient.post<BackendAuthResponse>('/auth/register', input);
+    return { token: res.access_token, user: mapBackendUser(res.user) };
   },
   async me(): Promise<UserProfile> {
     if (!isRestConfigured()) {
-      const { password, ...user } = mockUsers['demo@uleam.edu.ec'];
-      return user;
+      throw new Error('Configura VITE_REST_BASE_URL para usar el backend REST');
     }
-
-    return restClient.get<UserProfile>('/auth/me');
+    const me = await restClient.get<BackendAuthResponse['user']>('/auth/me');
+    return mapBackendUser(me);
   },
   async logout(): Promise<void> {
     if (!isRestConfigured()) return;

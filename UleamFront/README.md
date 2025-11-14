@@ -1,203 +1,74 @@
-# Sistema de Reserva de Espacios ULEAM
+# Sistema de Reserva de Espacios ULEAM – Frontend
 
-Sistema web completo de reserva de espacios para la Universidad Laica Eloy Alfaro de Manabí (ULEAM), desarrollado con React + Vite + Tailwind CSS con sistema de roles diferenciados.
+Frontend React/Vite que consume el backend distribuido (REST Python, GraphQL Go, WebSocket NestJS) para reservas, aprobaciones y dashboard en tiempo real.
 
-## 🚀 Características Principales
+## Requisitos
+- Node.js 20+
+- Backend corriendo en local:
+  - REST: `http://localhost:8000/api`
+  - GraphQL: `http://localhost:8080/graphql`
+  - WebSocket (Socket.IO): `http://localhost:3001`
 
-### Sistema de Roles
-
-#### Usuario Normal (Estudiante/Profesor)
-- Ver espacios disponibles
-- Crear reservas (requiere aprobación según tipo)
-- Ver/editar/cancelar sus propias reservas
-- Recibir notificaciones
-- Gestionar su perfil
-
-#### Administrador
-- **Todo lo del usuario normal +**
-- Aprobar/rechazar reservas pendientes
-- CRUD completo de espacios
-- CRUD de categorías y tipos de evento
-- Gestionar usuarios (activar/desactivar/cambiar roles)
-- Bloquear espacios temporalmente
-- Ver reportes y estadísticas
-- Configurar disponibilidad de espacios
-- Panel de administración completo
-
-### Estados de Reserva
-- **Pendiente** (amarillo) - Esperando aprobación admin
-- **Aprobada** (verde) - Confirmada por admin
-- **Rechazada** (rojo) - Negada por admin
-- **Completada** (azul) - Evento ya pasó
-- **Cancelada** (gris) - Cancelada por usuario o admin
-- **En Curso** (verde brillante) - Evento ocurriendo ahora
-
-## 🎨 Colores Institucionales ULEAM
-
-```javascript
-Rojo ULEAM: #E63946 (botones, enlaces, acentos)
-Rojo Oscuro: #C1121F (estados hover, modo oscuro)
-Rojo Claro: #FFE5E8 (fondos, badges, alertas)
-Gris: #8D99AE (texto secundario, bordes)
-Gris Oscuro: #2B2D42 (texto, fondos oscuros)
-Gris Claro: #EDF2F4 (fondos, tarjetas)
+## Configuración de entorno
+Crear `./.env.local` en la raíz de `UleamFront`:
+```
+VITE_REST_BASE_URL=http://localhost:8000
+VITE_GRAPHQL_URL=http://localhost:8080/graphql
+VITE_WS_URL=http://localhost:3001
 ```
 
-## 📋 Requisitos Previos
-
-- Node.js 20 o superior
-- npm o yarn
-
-## 🔧 Instalación
-
-1. **Clonar el repositorio** (si aplica)
+## Instalación y ejecución
 ```bash
-git clone <url-del-repositorio>
-cd uleam-reservas
-```
-
-2. **Instalar dependencias**
-```bash
+cd UleamFront
 npm install
+npm run dev        # http://localhost:5173
 ```
 
-## ▶️ Ejecución
-
-### Modo Desarrollo
-
+Build/previsualización:
 ```bash
-npm run dev
-```
-
-La aplicación estará disponible en `http://localhost:5000`
-
-### Modo Producción
-
-```bash
-# Construir la aplicación
 npm run build
-
-# Ejecutar en producción
-npm start
+npm run preview
 ```
 
-## 👤 Usuarios de Prueba
+## Funcionalidad clave
+- Login real contra REST (`/api/auth/login`) y guardado de JWT.
+- Roles y menús: Admin, Profesor, Estudiante (se lee `tipo_usuario_id` y `tipo_usuario.nombre`).
+- CRUD admin:
+  - Usuarios: cambiar rol/estado.
+  - Espacios, Categorías, Tipos de Evento (alta/edición/borrado inline).
+  - Aprobaciones de reservas (estado inicial Pendiente; prioridad por rol).
+- Reservas de usuario:
+  - Crear con slots predefinidos (08–18h HOY) y selección de tipo de evento/espacio.
+  - Listar/cancelar/ver detalle.
+- Dashboards y reportes:
+  - User home: próximas/mis reservas y estado siempre actualizado (WS + refetch).
+  - Admin dashboard: métricas, top espacios, pendientes.
+  - Admin reportes: métricas (GraphQL + fallback REST), gráficos por estado/tipo, top usuarios/espacios; descarga vía print/PDF.
+- Notificaciones:
+  - Carga histórica desde REST (`/api/notificaciones`).
+  - Tiempo real por Socket.IO (`notificaciones:user:{id}`, `reservas:usuario:{id}`, `dashboard:admin`, etc.).
 
-El sistema incluye datos mock para pruebas:
+## Rutas principales
+- Usuario: `/app/inicio`, `/app/espacios`, `/app/reservas`, `/app/reservas/nueva`, `/app/notificaciones`, `/app/perfil`, `/app/calendario`.
+- Admin: `/admin/dashboard`, `/admin/usuarios`, `/admin/espacios`, `/admin/categorias`, `/admin/eventos`, `/admin/aprobaciones`, `/admin/reportes`.
 
-### Administrador
-- **Nombre:** Juan Pérez
-- **Email:** juan.perez@uleam.edu.ec
-- **Rol:** Admin
+## Estructura relevante (`client/src`)
+- `api/` REST y GraphQL clients.
+- `pages/` vistas (usuario y admin).
+- `components/` UI y negocio (incluye `components/ui` de shadcn).
+- `contexts/` (`AuthContext`) y `hooks/` (`useWebSocket`, etc.).
+- `config/env.ts` lee las variables `VITE_*`.
 
-Para cambiar entre roles, usa el menú de usuario en la esquina superior derecha.
+## Usuarios de prueba (backend real)
+Todos con contraseña `password123` (según seed del backend):
+- Admin: `admin@uleam.edu.ec`
+- Profesor: `profesor1@uleam.edu.ec`
+- Estudiante: `estudiante1@uleam.edu.ec`
 
-## 🗂️ Estructura del Proyecto
-
-```
-uleam-reservas/
-├── client/                 # Frontend React
-│   ├── src/
-│   │   ├── components/    # Componentes reutilizables
-│   │   │   ├── ui/       # Componentes base (shadcn)
-│   │   │   ├── AdminBadge.tsx
-│   │   │   ├── MetricCard.tsx
-│   │   │   ├── Navbar.tsx
-│   │   │   ├── ReservationCard.tsx
-│   │   │   ├── SpaceCard.tsx
-│   │   │   ├── StatusBadge.tsx
-│   │   │   └── app-sidebar.tsx
-│   │   ├── contexts/     # Contextos de React
-│   │   │   └── AuthContext.tsx
-│   │   ├── pages/        # Páginas de la aplicación
-│   │   │   ├── Home.tsx
-│   │   │   ├── Espacios.tsx
-│   │   │   └── AdminDashboard.tsx
-│   │   ├── lib/          # Utilidades
-│   │   └── App.tsx       # Componente principal
-│   └── index.html
-├── server/                # Backend Express
-│   ├── routes.ts         # Rutas de la API
-│   ├── storage.ts        # Capa de almacenamiento
-│   └── index.ts          # Servidor principal
-├── shared/               # Código compartido
-│   └── schema.ts         # Esquemas de datos
-└── README.md
-```
-
-## 🎯 Páginas Principales
-
-### Para Todos los Usuarios
-- `/` - Dashboard principal
-- `/espacios` - Explorar espacios disponibles
-- `/reservas` - Mis reservas
-- `/reservas/nueva` - Nueva reserva
-- `/calendario` - Vista de calendario
-- `/notificaciones` - Notificaciones
-- `/perfil` - Mi perfil
-
-### Solo para Administradores
-- `/admin` - Panel de administración
-- `/admin/usuarios` - Gestión de usuarios
-- `/admin/espacios` - Gestión de espacios
-- `/admin/categorias` - Gestión de categorías
-- `/admin/tipos-evento` - Tipos de evento
-- `/admin/bloqueos` - Bloqueos de espacios
-- `/admin/aprobar-reservas` - Aprobar reservas
-- `/admin/reportes` - Reportes y estadísticas
-- `/admin/configuracion` - Configuración del sistema
-
-## 🛠️ Tecnologías Utilizadas
-
-### Frontend
-- **React 18** - Biblioteca de UI
-- **Vite** - Build tool y dev server
-- **Tailwind CSS** - Framework de CSS
-- **Wouter** - Enrutamiento ligero
-- **Shadcn UI** - Componentes de UI
-- **Lucide React** - Iconos
-- **Recharts** - Gráficas y estadísticas
-- **TanStack Query** - Manejo de estado del servidor
-
-### Backend
-- **Express.js** - Framework de servidor
-- **TypeScript** - Tipado estático
-- **Zod** - Validación de esquemas
-
-## 📝 Desarrollo
-
-### Scripts Disponibles
-
-```bash
-# Iniciar servidor de desarrollo
-npm run dev
-
-# Construir para producción
-npm run build
-
-# Iniciar servidor de producción
-npm start
-
-# Limpiar build
-npm run clean
-```
-
-### Estructura de Componentes
-
-Los componentes siguen las mejores prácticas de React y están organizados por funcionalidad:
-
-- **Componentes de UI base** (`/components/ui/`) - Componentes reutilizables de shadcn
-- **Componentes de negocio** (`/components/`) - Componentes específicos de la aplicación
-- **Páginas** (`/pages/`) - Vistas completas de la aplicación
-- **Contextos** (`/contexts/`) - Estado global con Context API
-
-## 🔐 Sistema de Autenticación
-
-El sistema incluye un contexto de autenticación (`AuthContext`) que maneja:
-- Estado del usuario actual
-- Verificación de roles (usuario/admin)
-- Login/Logout
-- Cambio de roles (para desarrollo)
+## Notas de integración
+- REST base se concatena con `/api` automáticamente.
+- WS usa Socket.IO con `auth.token` (JWT). Suscripciones por defecto según rol.
+- GraphQL requiere el mismo JWT en `Authorization: Bearer <token>`.
 
 ## 🎨 Personalización
 
