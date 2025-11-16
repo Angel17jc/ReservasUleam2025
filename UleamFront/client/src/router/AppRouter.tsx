@@ -87,73 +87,102 @@ function PrivateAdmin({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function UserRoutes() {
-  return (
-    <PrivateUser>
-      <UserLayout>
-        <Suspense fallback={<LoadingSpinner text="Cargando página..." />}>
-          <Switch>
-            <Route path="/app/inicio" component={DashboardPage} />
-            <Route path="/app/espacios" component={EspaciosListPage} />
-            <Route path="/app/reservas/nueva" component={NuevaReservaPage} />
-            <Route path="/app/reservas/new" component={NuevaReservaPage} />
-            <Route path="/app/reservas/:id" component={ReservaDetailPage as any} />
-            <Route path="/app/reservas" component={ReservasListPage} />
-            <Route path="/app/reportes" component={ReportesPage} />
-            <Route path="/app/perfil" component={PerfilUsuarioPage} />
-            <Route path="/app/notificaciones" component={NotificacionesPage} />
-            <Route path="/app/calendario" component={CalendarioPage} />
-            <Route component={NotFound} />
-          </Switch>
-        </Suspense>
-      </UserLayout>
-    </PrivateUser>
-  );
-}
-
-function AdminRoutes() {
-  return (
-    <PrivateAdmin>
-      <AdminLayout>
-        <Suspense fallback={<LoadingSpinner text="Cargando panel admin..." />}>
-          <Switch>
-            {/* Rutas administrativas */}
-            <Route path="/admin/dashboard" component={AdminDashboardPage} />
-            <Route path="/admin/usuarios" component={AdminUsuariosPage as any} />
-            <Route path="/admin/espacios" component={AdminEspaciosPage as any} />
-            <Route path="/admin/categorias" component={AdminCategoriasPage as any} />
-            <Route path="/admin/eventos" component={AdminEventosPage as any} />
-            <Route path="/admin/aprobaciones" component={AdminAprobacionesPage as any} />
-            <Route path="/admin/reportes" component={AdminReportesPage as any} />
-            
-            {/* Funcionalidades de usuario accesibles para admin con AdminLayout */}
-            <Route path="/admin/inicio" component={DashboardPage} />
-            <Route path="/admin/explorar-espacios" component={EspaciosListPage} />
-            <Route path="/admin/mis-reservas" component={ReservasListPage} />
-            <Route path="/admin/nueva-reserva" component={NuevaReservaPage} />
-            <Route path="/admin/reserva/:id" component={ReservaDetailPage as any} />
-            <Route path="/admin/notificaciones" component={NotificacionesPage} />
-            <Route path="/admin/perfil" component={PerfilUsuarioPage} />
-            <Route path="/admin/calendario" component={CalendarioPage} />
-            
-            <Route path="/admin/:section*" component={AdminPlaceholderPage as any} />
-            <Route component={NotFound} />
-          </Switch>
-        </Suspense>
-      </AdminLayout>
-    </PrivateAdmin>
-  );
-}
-
 export default function AppRouter() {
   return (
     <Switch>
+      {/* Rutas públicas */}
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={LoginPage} />
-      {/* Rutas de usuario - accesibles para users y admins */}
-      <Route path="/app/:rest*" component={UserRoutes as any} />
-      {/* Rutas de admin - solo para admins */}
-      <Route path="/admin/:rest*" component={AdminRoutes as any} />
+      
+      {/* Rutas de usuario (con layout) */}
+      <Route path="/app/reservas/nueva">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><NuevaReservaPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
+      <Route path="/app/reservas/new">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><NuevaReservaPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
+      <Route path="/app/reservas/:id">
+        {(params) => (
+          <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><ReservaDetailPage params={params} /></Suspense></UserLayout></PrivateUser>
+        )}
+      </Route>
+      <Route path="/app/reservas">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><ReservasListPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
+      <Route path="/app/inicio">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><DashboardPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
+      <Route path="/app/espacios">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><EspaciosListPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
+      <Route path="/app/reportes">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><ReportesPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
+      <Route path="/app/perfil">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><PerfilUsuarioPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
+      <Route path="/app/notificaciones">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><NotificacionesPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
+      <Route path="/app/calendario">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><CalendarioPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
+      
+      {/* Rutas de admin (con layout admin) */}
+      <Route path="/admin/nueva-reserva">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><NuevaReservaPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/mis-reservas">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><ReservasListPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/explorar-espacios">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><EspaciosListPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/reserva/:id">
+        {(params) => (
+          <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><ReservaDetailPage params={params} /></Suspense></AdminLayout></PrivateAdmin>
+        )}
+      </Route>
+      <Route path="/admin/dashboard">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><AdminDashboardPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/usuarios">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><AdminUsuariosPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/espacios">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><AdminEspaciosPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/categorias">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><AdminCategoriasPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/eventos">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><AdminEventosPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/aprobaciones">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><AdminAprobacionesPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/reportes">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><AdminReportesPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/inicio">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><DashboardPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/notificaciones">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><NotificacionesPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/perfil">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><PerfilUsuarioPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/calendario">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><CalendarioPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/:section*">
+        {(params) => (
+          <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><AdminPlaceholderPage params={{ section: params['section*'] }} /></Suspense></AdminLayout></PrivateAdmin>
+        )}
+      </Route>
+      
+      {/* 404 */}
       <Route component={NotFound} />
     </Switch>
   );
