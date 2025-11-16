@@ -12,13 +12,6 @@ export default function LandingPage() {
   const [, navigate] = useLocation();
 
   const handleLogin = () => setLoginOpen(true);
-  const handleGuest = () => {
-    if (isAuthenticated) {
-      navigate(isAdmin ? '/admin/dashboard' : '/app/inicio');
-    } else {
-      window.scrollTo({ top: document.body.scrollHeight / 2, behavior: 'smooth' });
-    }
-  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -64,9 +57,6 @@ export default function LandingPage() {
 
             <div className="flex flex-wrap gap-3">
               <Button onClick={handleLogin}>Iniciar sesión</Button>
-              <Button variant="outline" onClick={handleGuest}>
-                Ver como invitado
-              </Button>
             </div>
           </div>
         </div>

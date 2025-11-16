@@ -27,14 +27,18 @@ import {
 } from '@/components/ui/sidebar';
 import { Link } from 'wouter';
 
-const userMenuItems = [
-  { title: 'Inicio', url: '/app/inicio', icon: Home },
-  { title: 'Explorar Espacios', url: '/app/espacios', icon: Building2 },
-  { title: 'Mis Reservas', url: '/app/reservas', icon: Calendar },
-  { title: 'Nueva Reserva', url: '/app/reservas/nueva', icon: CalendarPlus },
-  { title: 'Notificaciones', url: '/app/notificaciones', icon: Bell },
-  { title: 'Mi Perfil', url: '/app/perfil', icon: User },
-];
+// URLs dinámicas según el variant (user vs admin)
+const getUserMenuItems = (variant: 'user' | 'admin') => {
+  const prefix = variant === 'admin' ? '/admin' : '/app';
+  return [
+    { title: 'Inicio', url: `${prefix}/inicio`, icon: Home },
+    { title: 'Explorar Espacios', url: `${prefix}/${variant === 'admin' ? 'explorar-espacios' : 'espacios'}`, icon: Building2 },
+    { title: 'Mis Reservas', url: `${prefix}/${variant === 'admin' ? 'mis-reservas' : 'reservas'}`, icon: Calendar },
+    { title: 'Nueva Reserva', url: `${prefix}/${variant === 'admin' ? 'nueva-reserva' : 'reservas/nueva'}`, icon: CalendarPlus },
+    { title: 'Notificaciones', url: `${prefix}/notificaciones`, icon: Bell },
+    { title: 'Mi Perfil', url: `${prefix}/perfil`, icon: User },
+  ];
+};
 
 const adminMenuItems = [
   { title: 'Panel de Administración', url: '/admin/dashboard', icon: Shield },
@@ -52,6 +56,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ variant }: AppSidebarProps) {
   const showAdmin = variant === 'admin';
+  const userMenuItems = getUserMenuItems(variant);
 
   return (
     <Sidebar>

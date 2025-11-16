@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
+import { Eye, EyeOff } from 'lucide-react';
 
 export type LoginFormProps = {
   onSuccess?: (role: 'user' | 'admin') => void;
@@ -12,8 +13,9 @@ export type LoginFormProps = {
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const { login } = useAuth();
   const [, navigate] = useLocation();
-  const [email, setEmail] = useState('demo@uleam.edu.ec');
-  const [password, setPassword] = useState('demo123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -32,23 +34,60 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     }
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword((prev) => !prev);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <Input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="correo@uleam.edu.ec"
-        required
-      />
-      <Input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="••••••••"
-        required
-      />
-      {error && <p className="text-destructive text-sm">{error}</p>}
+      <div className="space-y-2">
+        <label htmlFor="email" className="text-sm font-medium text-foreground">
+          Correo electrónico
+        </label>
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="correo@uleam.edu.ec"
+          required
+          disabled={loading}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="password" className="text-sm font-medium text-foreground">
+          Contraseña
+        </label>
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+            disabled={loading}
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={togglePasswordVisibility}
+            className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            disabled={loading}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-md bg-destructive/10 p-3">
+          <p className="text-destructive text-sm">{error}</p>
+        </div>
+      )}
+
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? 'Ingresando...' : 'Entrar'}
       </Button>
@@ -78,7 +117,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
         <DialogHeader>
           <DialogTitle>Iniciar sesión</DialogTitle>
           <p className="text-muted-foreground text-sm">
-            Autentica contra el servicio REST externo (mock mientras conectamos el backend real).
+            Ingresa tus credenciales para acceder al sistema.
           </p>
         </DialogHeader>
         <LoginForm onSuccess={() => onOpenChange(false)} />
