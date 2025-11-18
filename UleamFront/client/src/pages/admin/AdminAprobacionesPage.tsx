@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reservasApi } from '@/api/rest/reservasApi';
 import { usuariosApi } from '@/api/rest/usuariosApi';
 import { tiposUsuarioApi } from '@/api/rest/tiposUsuarioApi';
+import { espaciosApi } from '@/api/rest/espaciosApi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,10 @@ export default function AdminAprobacionesPage() {
     queryKey: ['admin-reservas-tipos-usuario'],
     queryFn: () => tiposUsuarioApi.list(),
   });
+  const { data: espaciosData } = useQuery({
+    queryKey: ['admin-reservas-espacios'],
+    queryFn: () => espaciosApi.list(),
+  });
 
   const tipoPrioridad = useMemo(() => {
     const map: Record<number, number> = {};
@@ -37,13 +42,22 @@ export default function AdminAprobacionesPage() {
   const usuariosMap = useMemo(() => {
     const map: Record<string, { nombre: string; prioridad: number }> = {};
     (usuariosData?.items ?? []).forEach((u) => {
+      // Extraer nombre completo desde el campo 'nombre' que ya viene concatenado
       map[String(u.id)] = {
-        nombre: `${u.nombre} ${u.apellido ?? ''}`.trim(),
+        nombre: u.nombre,
         prioridad: tipoPrioridad[u.tipoUsuarioId ?? 99] ?? 99,
       };
     });
     return map;
   }, [usuariosData, tipoPrioridad]);
+
+  const espaciosMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (espaciosData?.items ?? []).forEach((e) => {
+      map[String(e.id)] = e.nombre;
+    });
+    return map;
+  }, [espaciosData]);
 
   const pendientes = useMemo(() => {
     const items = reservasData?.items ?? [];
@@ -96,7 +110,7 @@ export default function AdminAprobacionesPage() {
                   <User size={14} /> {usuario?.nombre ?? `Usuario #${res.usuarioId}`}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Building2 size={14} /> Espacio #{res.espacioId}
+                  <Building2 size={14} /> {espaciosMap[String(res.espacioId)] ?? `Espacio #${res.espacioId}`}
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar size={14} /> {res.fecha}

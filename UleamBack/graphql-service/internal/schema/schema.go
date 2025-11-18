@@ -51,8 +51,24 @@ var reservaType = graphql.NewObject(graphql.ObjectConfig{
 	Fields: graphql.Fields{
 		"id":          &graphql.Field{Type: graphql.Int},
 		"codigo":      &graphql.Field{Type: graphql.String},
-		"usuario_id":  &graphql.Field{Type: graphql.Int},
-		"espacio_id":  &graphql.Field{Type: graphql.Int},
+		"usuario_id": &graphql.Field{
+			Type: graphql.Int,
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				if res, ok := p.Source.(services.ReservationResult); ok {
+					return res.UsuarioID, nil
+				}
+				return nil, nil
+			},
+		},
+		"espacio_id": &graphql.Field{
+			Type: graphql.Int,
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				if res, ok := p.Source.(services.ReservationResult); ok {
+					return res.EspacioID, nil
+				}
+				return nil, nil
+			},
+		},
 		"tipo_evento": &graphql.Field{Type: graphql.String},
 		"estado":      &graphql.Field{Type: graphql.String},
 		"fecha":       &graphql.Field{Type: graphql.String},

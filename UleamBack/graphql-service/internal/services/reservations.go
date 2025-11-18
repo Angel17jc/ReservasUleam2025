@@ -102,6 +102,9 @@ func (r *ReservationsService) List(filter ReservationFilter) ([]ReservationResul
 		if err := rows.Scan(&res.ID, &res.Codigo, &res.UsuarioID, &res.EspacioID, &res.TipoEvento, &res.Estado,
 			&fecha, &res.HoraInicio, &res.HoraFin, &res.Titulo, &res.Descripcion, &res.EsBloqueo); err == nil {
 			res.Fecha = fecha.Format("2006-01-02")
+			// Debug: Log de datos leídos de BD
+			fmt.Printf("[DEBUG] Reserva leída: ID=%d, UsuarioID=%d, EspacioID=%d, Titulo=%s\n", 
+				res.ID, res.UsuarioID, res.EspacioID, res.Titulo)
 			out = append(out, res)
 		}
 	}

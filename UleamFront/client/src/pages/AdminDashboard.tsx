@@ -24,17 +24,17 @@ export default function AdminDashboard() {
     queryFn: () => fetchTopEspacios(5),
   });
 
-  const { data: usuarios } = useQuery({
+  const { data: usuarios, isLoading: usuariosLoading, error: usuariosError } = useQuery({
     queryKey: ['admin-usuarios'],
     queryFn: () => usuariosApi.list(),
   });
 
-  const { data: espacios } = useQuery({
+  const { data: espacios, isLoading: espaciosLoading, error: espaciosError } = useQuery({
     queryKey: ['admin-espacios'],
     queryFn: () => espaciosApi.list(),
   });
 
-  const { data: reservasTodas = [] } = useQuery({
+  const { data: reservasTodas = [], isLoading: reservasLoading } = useQuery({
     queryKey: ['admin-reservas'],
     queryFn: () => fetchReservas(),
   });
@@ -48,6 +48,81 @@ export default function AdminDashboard() {
     () => reservasTodas.filter((r) => (r.estado ?? '').toLowerCase() === 'pendiente'),
     [reservasTodas],
   );
+
+  // Debug: Log para verificar los datos (DESPUÉS de definir todas las variables)
+  console.log('📊 Dashboard Debug:');
+  console.log(`  Usuarios cargados: ${usuarios?.items?.length ?? 0}`);
+  console.log(`  Espacios cargados: ${espacios?.items?.length ?? 0}`);
+  console.log(`  Reservas totales: ${reservasTodas.length}`);
+  console.log(`  Pendientes: ${pendientes.length}`);
+  if (reservasTodas[0]) {
+    console.log(`  Primera reserva:`, {
+      id: reservasTodas[0].id,
+      usuarioId: reservasTodas[0].usuarioId,
+      espacioId: reservasTodas[0].espacioId,
+      titulo: reservasTodas[0].titulo,
+    });
+  }
+  if (usuarios?.items?.[0]) {
+    console.log(`  Primer usuario:`, {
+      id: usuarios.items[0].id,
+      nombre: usuarios.items[0].nombre,
+    });
+  }
+  if (espacios?.items?.[0]) {
+    console.log(`  Primer espacio:`, {
+      id: espacios.items[0].id,
+      nombre: espacios.items[0].nombre,
+    });
+  }
+
+  // Enriquecer datos: mapear IDs a nombres
+  const reservasEnriquecidas = useMemo(() => {
+    if (!usuarios?.items || !espacios?.items || pendientes.length === 0) return [];
+    
+    // Crear mapas optimizados para búsqueda O(1)
+    const usuariosMap = new Map(
+      usuarios.items.map(u => [Number(u.id), u])
+    );
+    const espaciosMap = new Map(
+      espacios.items.map(e => [Number(e.id), e])
+    );
+    
+    console.log('🔗 Mapeo de reservas:');
+    console.log(`  Total usuarios: ${usuarios.items.length}`);
+    console.log(`  Total espacios: ${espacios.items.length}`);
+    console.log(`  Total pendientes: ${pendientes.length}`);
+    console.log(`  Usuarios IDs: ${usuarios.items.slice(0, 3).map(u => u.id).join(', ')}...`);
+    console.log(`  Espacios IDs: ${espacios.items.slice(0, 3).map(e => e.id).join(', ')}...`);
+    if (pendientes.length > 0) {
+      const sample = pendientes[0];
+      console.log(`  Muestra reserva pendiente:`);
+      console.log(`    ID: ${sample.id}, usuarioId: ${sample.usuarioId} (${typeof sample.usuarioId}), espacioId: ${sample.espacioId} (${typeof sample.espacioId})`);
+    }
+    
+    return pendientes.map((reserva) => {
+      // Validar que los IDs existan y sean válidos
+      const usuarioId = reserva.usuarioId != null ? Number(reserva.usuarioId) : null;
+      const espacioId = reserva.espacioId != null ? Number(reserva.espacioId) : null;
+      
+      const usuario = usuarioId ? usuariosMap.get(usuarioId) : null;
+      const espacio = espacioId ? espaciosMap.get(espacioId) : null;
+      
+      // Si no encontramos el usuario o espacio, loggearlo
+      if (!usuario && usuarioId) {
+        console.warn(`Usuario ID ${usuarioId} no encontrado en el mapa`);
+      }
+      if (!espacio && espacioId) {
+        console.warn(`Espacio ID ${espacioId} no encontrado en el mapa`);
+      }
+      
+      return {
+        ...reserva,
+        usuarioNombre: usuario?.nombre || (usuarioId ? `Usuario #${usuarioId}` : 'Usuario no especificado'),
+        espacioNombre: espacio?.nombre || (espacioId ? `Espacio #${espacioId}` : 'Espacio no especificado'),
+      };
+    });
+  }, [pendientes, usuarios, espacios]);
 
   // Datos para gráfica: reservas por día últimos 7 días
   const chartData = useMemo(() => {
@@ -158,25 +233,44 @@ export default function AdminDashboard() {
 
       <div>
         <h2 className="text-2xl font-semibold text-foreground mb-6">Reservas Pendientes de Aprobación</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {pendientes.map((reservation) => (
-            <ReservationCard
-              key={reservation.id}
-              id={reservation.id}
-              espacio={String(reservation.espacioId)}
-              usuario={String(reservation.usuarioId)}
-              fecha={reservation.fecha}
-              horaInicio={reservation.horaInicio}
-              horaFin={reservation.horaFin}
-              tipoEvento={reservation.titulo ?? reservation.tipoEvento ?? 'Reserva'}
-              estado={(reservation.estado ?? 'pendiente') as any}
-              showActions={false}
-              onApprove={() => window.open(`/admin/aprobar/${reservation.id}`, '_self')}
-              onReject={() => window.open(`/admin/aprobar/${reservation.id}`, '_self')}
-            />
-          ))}
-          {pendientes.length === 0 && <p className="text-muted-foreground">No hay reservas pendientes.</p>}
-        </div>
+        {(usuariosLoading || espaciosLoading || reservasLoading) ? (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+            <p>Cargando reservas y datos relacionados...</p>
+          </div>
+        ) : (usuariosError || espaciosError) ? (
+          <div className="p-4 bg-destructive/10 text-destructive rounded-lg">
+            <p className="font-semibold">Error al cargar datos:</p>
+            <p className="text-sm mt-1">{usuariosError?.message || espaciosError?.message}</p>
+            <p className="text-xs mt-2">Verifica que los servicios backend estén ejecutándose</p>
+          </div>
+        ) : !usuarios?.items || !espacios?.items ? (
+          <p className="text-muted-foreground">No se pudieron cargar los datos necesarios.</p>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {reservasEnriquecidas.map((reservation) => (
+              <ReservationCard
+                key={reservation.id}
+                id={reservation.id}
+                espacio={reservation.espacioNombre}
+                usuario={reservation.usuarioNombre}
+                fecha={reservation.fecha}
+                horaInicio={reservation.horaInicio ?? '-'}
+                horaFin={reservation.horaFin ?? '-'}
+                tipoEvento={reservation.titulo ?? reservation.tipoEvento ?? 'Reserva'}
+                estado={(reservation.estado ?? 'pendiente') as any}
+                showActions={false}
+                onApprove={() => window.open(`/admin/aprobaciones`, '_self')}
+                onReject={() => window.open(`/admin/aprobaciones`, '_self')}
+              />
+            ))}
+            {reservasEnriquecidas.length === 0 && (
+              <div className="col-span-full text-center py-8">
+                <p className="text-muted-foreground">No hay reservas pendientes de aprobación.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

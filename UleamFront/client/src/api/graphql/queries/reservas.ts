@@ -70,6 +70,11 @@ const RESERVA_DETAIL_QUERY = /* GraphQL */ `
 `;
 
 function mapNode(r: any): ReservaNode {
+  // Debug: Log de datos crudos de GraphQL (solo primeras 3 reservas)
+  if (process.env.NODE_ENV === 'development' && Math.random() < 0.15) {
+    console.log(`🔍 GraphQL → usuario_id: ${r.usuario_id}, espacio_id: ${r.espacio_id}, titulo: ${r.titulo}`);
+  }
+  
   return {
     id: String(r.id),
     codigo: r.codigo,
