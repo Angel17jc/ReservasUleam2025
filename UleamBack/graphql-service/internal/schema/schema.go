@@ -5,18 +5,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/graphql-go/graphql"
 	"graphql-service/internal/auth"
 	"graphql-service/internal/config"
 	"graphql-service/internal/services"
+
+	"github.com/graphql-go/graphql"
 )
 
 type Dependencies struct {
-	Reservations  *services.ReservationsService
-	Availability  *services.AvailabilityService
-	Stats         *services.StatsService
-	Users         services.UserService
-	Webhook       *services.WebhookClient
+	Reservations *services.ReservationsService
+	Availability *services.AvailabilityService
+	Stats        *services.StatsService
+	Users        services.UserService
+	Webhook      *services.WebhookClient
 }
 
 func Build(db *sql.DB, cfg config.Config, users *services.UserService) (graphql.Schema, error) {
@@ -49,8 +50,8 @@ func Build(db *sql.DB, cfg config.Config, users *services.UserService) (graphql.
 var reservaType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "Reserva",
 	Fields: graphql.Fields{
-		"id":          &graphql.Field{Type: graphql.Int},
-		"codigo":      &graphql.Field{Type: graphql.String},
+		"id":     &graphql.Field{Type: graphql.Int},
+		"codigo": &graphql.Field{Type: graphql.String},
 		"usuario_id": &graphql.Field{
 			Type: graphql.Int,
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
