@@ -1,4 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -6,6 +12,9 @@ import { ConfigService } from '@nestjs/config';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UsersService } from '../users/users.service';
 import { RedisService } from '../redis/redis.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { TokenResponse, UserResponse } from './interfaces/auth.interface';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +28,166 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
   ) {}
+
+  /**
+   * Register a new user
+   */
+  async register(
+    registerDto: RegisterDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<TokenResponse & { user: UserResponse }> {
+    try {
+      // Create user (UsersService already validates email uniqueness)
+      const user = await this.usersService.create({
+        nombre: registerDto.nombre,
+        apellido: registerDto.apellido,
+        email: registerDto.email,
+        password: registerDto.password,
+        tipoUsuarioId: registerDto.tipoUsuarioId,
+        telefono: registerDto.telefono,
+      });
+
+      // Generate tokens
+      const accessToken = await this.generateAccessToken(
+        user.id,
+        user.email,
+        user.tipoUsuarioId,
+      );
+
+      const refreshToken = await this.generateRefreshToken(
+        user.id,
+        user.email,
+        ipAddress,
+        userAgent,
+      );
+
+      this.logger.log(`Usuario registrado exitosamente: ${user.email} (ID: ${user.id})`);
+
+      // Return user data without sensitive fields
+      const userResponse: UserResponse = {
+        id: user.id,
+        nombre: user.nombre,
+        apellido: user.apellido,
+        email: user.email,
+        tipoUsuarioId: user.tipoUsuarioId,
+        telefono: user.telefono,
+        avatarUrl: user.avatarUrl,
+        activo: user.activo,
+        fechaCreacion: user.fechaCreacion,
+      };
+
+      return {
+        user: userResponse,
+        accessToken,
+        refreshToken,
+        expiresIn: 900, // 15 minutes in seconds
+        tokenType: 'Bearer',
+      };
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      this.logger.error(`Error en registro: ${error.message}`, error.stack);
+      throw new BadRequestException('Error al registrar usuario');
+    }
+  }
+
+  /**
+   * Login user with credentials
+   */
+  async login(
+    loginDto: LoginDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<TokenResponse & { user: UserResponse }> {
+    const { email, password } = loginDto;
+
+    try {
+      // Find user by email
+      const user = await this.usersService.findByEmail(email.toLowerCase());
+
+      if (!user) {
+        this.logger.warn(`Intento de login fallido: usuario no encontrado (${email})`);
+        throw new UnauthorizedException('Credenciales inválidas');
+      }
+
+      // Check if user is blocked
+      const isBlocked = await this.usersService.isUserBlocked(user);
+      if (isBlocked) {
+        const blockedUntil = user.bloqueadoHasta?.toLocaleString('es-ES');
+        this.logger.warn(`Intento de login con usuario bloqueado: ${email}`);
+        throw new UnauthorizedException(
+          `Cuenta bloqueada temporalmente. Inténtelo de nuevo después de ${blockedUntil}`,
+        );
+      }
+
+      // Check if user is active
+      if (!user.activo) {
+        this.logger.warn(`Intento de login con usuario inactivo: ${email}`);
+        throw new UnauthorizedException('Cuenta desactivada. Contacte al administrador');
+      }
+
+      // Validate password
+      const isPasswordValid = await this.usersService.validatePassword(user, password);
+
+      if (!isPasswordValid) {
+        // Increment failed login attempts
+        await this.usersService.incrementFailedLoginAttempts(user.id);
+        this.logger.warn(`Contraseña incorrecta para usuario: ${email}`);
+        throw new UnauthorizedException('Credenciales inválidas');
+      }
+
+      // Update last login timestamp
+      await this.usersService.updateLastLogin(user.id);
+
+      // Generate tokens
+      const accessToken = await this.generateAccessToken(
+        user.id,
+        user.email,
+        user.tipoUsuarioId,
+      );
+
+      const refreshToken = await this.generateRefreshToken(
+        user.id,
+        user.email,
+        ipAddress,
+        userAgent,
+      );
+
+      this.logger.log(`Login exitoso: ${user.email} (ID: ${user.id})`);
+
+      // Return user data without sensitive fields
+      const userResponse: UserResponse = {
+        id: user.id,
+        nombre: user.nombre,
+        apellido: user.apellido,
+        email: user.email,
+        tipoUsuarioId: user.tipoUsuarioId,
+        telefono: user.telefono,
+        avatarUrl: user.avatarUrl,
+        activo: user.activo,
+        fechaCreacion: user.fechaCreacion,
+      };
+
+      return {
+        user: userResponse,
+        accessToken,
+        refreshToken,
+        expiresIn: 900, // 15 minutes in seconds
+        tokenType: 'Bearer',
+      };
+    } catch (error) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      this.logger.error(`Error en login: ${error.message}`, error.stack);
+      throw new UnauthorizedException('Error al iniciar sesión');
+    }
+  }
 
   /**
    * Generate JWT Access Token

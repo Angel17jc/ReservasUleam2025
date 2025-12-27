@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from '../src/users/users.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -15,11 +16,11 @@ import { UsersModule } from '../src/users/users.module';
       cache: true,
     }),
 
-    // Rate Limiting
+    // Rate Limiting Global
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute
-        limit: 10, // 10 requests per minute
+        limit: 20, // 20 requests per minute (aumentado para permitir operaciones normales)
       },
     ]),
 
@@ -30,6 +31,12 @@ import { UsersModule } from '../src/users/users.module';
     AuthModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    // Global rate limiting guard
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
