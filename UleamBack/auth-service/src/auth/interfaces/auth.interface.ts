@@ -22,6 +22,6 @@ export interface UserResponse {
   tipoUsuarioId: number;
   telefono: string | null;
   avatarUrl: string | null;
-  activo: boolean;
-  fechaCreacion: Date;
+  estado: string;
+  creadoEn: Date;
 }

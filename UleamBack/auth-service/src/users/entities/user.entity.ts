@@ -34,22 +34,27 @@ export class User {
   @Column({ name: 'avatar_url', type: 'text', nullable: true })
   avatarUrl: string | null;
 
-  @Column({ name: 'activo', type: 'boolean', default: true })
-  activo: boolean;
+  @Column({ 
+    name: 'estado', 
+    type: 'varchar', 
+    length: 20, 
+    default: 'activo' 
+  })
+  estado: 'activo' | 'inactivo' | 'bloqueado';
 
-  @CreateDateColumn({ name: 'fecha_creacion', type: 'timestamp with time zone' })
-  fechaCreacion: Date;
+  @CreateDateColumn({ name: 'creado_en', type: 'timestamp' })
+  creadoEn: Date;
 
-  @UpdateDateColumn({ name: 'fecha_actualizacion', type: 'timestamp with time zone' })
-  fechaActualizacion: Date;
+  @UpdateDateColumn({ name: 'actualizado_en', type: 'timestamp' })
+  actualizadoEn: Date;
 
-  // Timestamps adicionales opcionales
-  @Column({ name: 'ultimo_login', type: 'timestamp with time zone', nullable: true })
+  // Campos adicionales para seguridad y auditoría (no en el esquema inicial)
+  @Column({ name: 'ultimo_login', type: 'timestamp', nullable: true })
   ultimoLogin: Date | null;
 
-  @Column({ name: 'intentos_fallidos_login', type: 'integer', default: 0 })
+  @Column({ name: 'intentos_fallidos_login', type: 'integer', default: 0, nullable: true })
   intentosFallidosLogin: number;
 
-  @Column({ name: 'bloqueado_hasta', type: 'timestamp with time zone', nullable: true })
+  @Column({ name: 'bloqueado_hasta', type: 'timestamp', nullable: true })
   bloqueadoHasta: Date | null;
 }

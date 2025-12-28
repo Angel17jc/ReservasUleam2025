@@ -73,8 +73,8 @@ export class AuthService {
         tipoUsuarioId: user.tipoUsuarioId,
         telefono: user.telefono,
         avatarUrl: user.avatarUrl,
-        activo: user.activo,
-        fechaCreacion: user.fechaCreacion,
+        estado: user.estado,
+        creadoEn: user.creadoEn,
       };
 
       return {
@@ -123,9 +123,9 @@ export class AuthService {
       }
 
       // Check if user is active
-      if (!user.activo) {
-        this.logger.warn(`Intento de login con usuario inactivo: ${email}`);
-        throw new UnauthorizedException('Cuenta desactivada. Contacte al administrador');
+      if (user.estado !== 'activo') {
+        this.logger.warn(`Intento de login con usuario inactivo o bloqueado: ${email}`);
+        throw new UnauthorizedException('Cuenta desactivada o bloqueada. Contacte al administrador');
       }
 
       // Validate password
@@ -166,8 +166,8 @@ export class AuthService {
         tipoUsuarioId: user.tipoUsuarioId,
         telefono: user.telefono,
         avatarUrl: user.avatarUrl,
-        activo: user.activo,
-        fechaCreacion: user.fechaCreacion,
+        estado: user.estado,
+        creadoEn: user.creadoEn,
       };
 
       return {
@@ -294,6 +294,94 @@ export class AuthService {
       { revocado: true },
     );
     this.logger.log(`All refresh tokens revoked for user ${userId}`);
+  }
+
+  /**
+   * Refresh access token using refresh token
+   */
+  async refreshAccessToken(
+    refreshToken: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<TokenResponse> {
+    try {
+      // Validate refresh token format
+      const payload = await this.validateToken(refreshToken);
+      if (!payload || payload.type !== 'refresh') {
+        throw new UnauthorizedException('Refresh token inválido');
+      }
+
+      // Check if refresh token exists in database and is not revoked
+      const isValid = await this.isRefreshTokenValid(refreshToken);
+      if (!isValid) {
+        throw new UnauthorizedException('Refresh token expirado o revocado');
+      }
+
+      // Get user
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) {
+        throw new UnauthorizedException('Usuario no encontrado');
+      }
+
+      if (user.estado !== 'activo') {
+        throw new UnauthorizedException('Usuario desactivado o bloqueado');
+      }
+
+      // Generate new access token
+      const newAccessToken = await this.generateAccessToken(
+        user.id,
+        user.email,
+        user.tipoUsuarioId,
+      );
+
+      // Optionally generate new refresh token (rotation)
+      const newRefreshToken = await this.generateRefreshToken(
+        user.id,
+        user.email,
+        ipAddress,
+        userAgent,
+      );
+
+      // Revoke old refresh token
+      await this.revokeRefreshToken(refreshToken);
+
+      this.logger.log(`Access token refreshed for user ${user.id}`);
+
+      return {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        expiresIn: 900, // 15 minutes
+        tokenType: 'Bearer',
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      this.logger.error(`Error refreshing token: ${error.message}`, error.stack);
+      throw new UnauthorizedException('Error al refrescar token');
+    }
+  }
+
+  /**
+   * Logout user - revoke tokens and add to blacklist
+   */
+  async logout(userId: number, accessToken: string): Promise<{ message: string }> {
+    try {
+      // Revoke all refresh tokens for user
+      await this.revokeAllUserRefreshTokens(userId);
+
+      // Add access token to blacklist
+      // Calculate remaining TTL (15 minutes = 900 seconds)
+      const ttl = 900;
+      await this.redisService.blacklistToken(accessToken, ttl);
+
+      this.logger.log(`User ${userId} logged out successfully`);
+
+      return { message: 'Sesión cerrada exitosamente' };
+    } catch (error) {
+      this.logger.error(`Error during logout: ${error.message}`, error.stack);
+      throw new UnauthorizedException('Error al cerrar sesión');
+    }
   }
 
   /**

@@ -1,17 +1,22 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   HttpCode,
   HttpStatus,
   Ip,
   Headers,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBadRequestResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBadRequestResponse, ApiUnauthorizedResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -35,7 +40,7 @@ export class AuthController {
           apellido: 'Pérez',
           email: 'juan.perez@uleam.edu.ec',
           tipoUsuarioId: 2,
-          activo: true
+          estado: 'activo'
         },
         accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
@@ -70,7 +75,7 @@ export class AuthController {
           apellido: 'Pérez',
           email: 'juan.perez@uleam.edu.ec',
           tipoUsuarioId: 2,
-          activo: true,
+          estado: 'activo',
           ultimoLogin: '2026-01-10T21:00:00.000Z'
         },
         accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
@@ -91,17 +96,85 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refrescar access token' })
-  @ApiOperation({ description: 'Se implementará completamente en Commit 3' })
-  async refresh() {
-    return { message: 'Endpoint disponible en Commit 3' };
+  @ApiOperation({ 
+    summary: 'Refrescar access token',
+    description: 'Genera un nuevo access token usando un refresh token válido. Implementa rotation de refresh tokens.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Token refrescado exitosamente',
+    schema: {
+      example: {
+        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        expiresIn: 900,
+        tokenType: 'Bearer'
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: 'Refresh token inválido, expirado o revocado' })
+  async refresh(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return await this.authService.refreshAccessToken(
+      refreshTokenDto.refreshToken,
+      ip,
+      userAgent,
+    );
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Cerrar sesión' })
-  @ApiOperation({ description: 'Se implementará completamente en Commit 3' })
-  async logout() {
-    return { message: 'Endpoint disponible en Commit 3' };
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ 
+    summary: 'Cerrar sesión',
+    description: 'Revoca todos los refresh tokens del usuario y agrega el access token a blacklist'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Sesión cerrada exitosamente',
+    schema: {
+      example: {
+        message: 'Sesión cerrada exitosamente'
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: 'Token inválido o expirado' })
+  async logout(
+    @Request() req: any,
+    @Headers('authorization') authorization: string,
+  ) {
+    // Extraer token del header Authorization
+    const token = authorization?.replace('Bearer ', '');
+    return await this.authService.logout(req.user.id, token);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ 
+    summary: 'Obtener perfil del usuario autenticado',
+    description: 'Retorna la información del usuario actual basado en el JWT'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Perfil del usuario',
+    schema: {
+      example: {
+        id: 1,
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        email: 'juan.perez@uleam.edu.ec',
+        tipoUsuarioId: 2,
+        estado: 'activo'
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: 'Token inválido o expirado' })
+  async getProfile(@Request() req: any) {
+    return req.user;
   }
 }

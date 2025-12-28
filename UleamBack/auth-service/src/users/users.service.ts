@@ -62,9 +62,9 @@ export class UsersService {
       throw new ConflictException(`El email ${userData.email} ya está registrado`);
     }
 
-    // Hash password
-    const bcryptRounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
-    const passwordHash = await bcrypt.hash(userData.password, bcryptRounds);
+    // Hash password con bcrypt (12 rounds por defecto)
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(userData.password, saltRounds);
 
     // Create user entity
     const user = this.userRepository.create({
@@ -74,8 +74,10 @@ export class UsersService {
       passwordHash,
       tipoUsuarioId: userData.tipoUsuarioId,
       telefono: userData.telefono || null,
-      activo: true,
+      avatarUrl: null,
+      estado: 'activo',
       intentosFallidosLogin: 0,
+      bloqueadoHasta: null,
     });
 
     const savedUser = await this.userRepository.save(user);
@@ -179,7 +181,7 @@ export class UsersService {
    * Deactivate user account
    */
   async deactivate(userId: number): Promise<void> {
-    await this.userRepository.update(userId, { activo: false });
+    await this.userRepository.update(userId, { estado: 'inactivo' });
     this.logger.log(`Usuario ID: ${userId} desactivado`);
   }
 
@@ -187,7 +189,7 @@ export class UsersService {
    * Activate user account
    */
   async activate(userId: number): Promise<void> {
-    await this.userRepository.update(userId, { activo: true });
+    await this.userRepository.update(userId, { estado: 'activo' });
     this.logger.log(`Usuario ID: ${userId} activado`);
   }
 }
