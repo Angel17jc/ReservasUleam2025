@@ -180,14 +180,14 @@ export class AuthController {
   }
 
   /**
-   * Endpoint de validación para servicios P1
+   * Endpoint de validaciï¿½n para servicios P1
    * Permite a REST, GraphQL y WebSocket verificar tokens JWT
    */
   @Post('validate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
     summary: 'Validar token JWT (Para servicios P1)',
-    description: 'Endpoint para que servicios REST, GraphQL y WebSocket validen tokens JWT. Verifica firma, expiración, blacklist y estado del usuario.'
+    description: 'Endpoint para que servicios REST, GraphQL y WebSocket validen tokens JWT. Verifica firma, expiraciï¿½n, blacklist y estado del usuario.'
   })
   @ApiResponse({ 
     status: 200, 
@@ -199,7 +199,7 @@ export class AuthController {
           id: 1,
           email: 'juan.perez@uleam.edu.ec',
           nombre: 'Juan',
-          apellido: 'Pérez',
+          apellido: 'Pï¿½rez',
           tipoUsuarioId: 2,
           estado: 'activo'
         }
@@ -208,7 +208,7 @@ export class AuthController {
   })
   @ApiResponse({ 
     status: 200, 
-    description: 'Token inválido',
+    description: 'Token invï¿½lido',
     schema: {
       example: {
         valid: false,
@@ -216,24 +216,24 @@ export class AuthController {
       }
     }
   })
-  @ApiBadRequestResponse({ description: 'Datos de entrada inválidos' })
+  @ApiBadRequestResponse({ description: 'Datos de entrada invï¿½lidos' })
   async validateToken(@Body() validateTokenDto: ValidateTokenDto) {
     return await this.authService.validateTokenForP1(validateTokenDto.token);
   }
 
   /**
-   * Endpoint para obtener configuración pública del JWT
-   * Permite a servicios P1 conocer la configuración del emisor
+   * Endpoint para obtener configuraciï¿½n pï¿½blica del JWT
+   * Permite a servicios P1 conocer la configuraciï¿½n del emisor
    */
   @Get('public-key')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
-    summary: 'Obtener configuración pública JWT',
-    description: 'Retorna información pública sobre la configuración JWT (algoritmo, issuer, expiración). Útil para servicios P1.'
+    summary: 'Obtener configuraciï¿½n pï¿½blica JWT',
+    description: 'Retorna informaciï¿½n pï¿½blica sobre la configuraciï¿½n JWT (algoritmo, issuer, expiraciï¿½n). ï¿½til para servicios P1.'
   })
   @ApiResponse({ 
     status: 200, 
-    description: 'Configuración pública del JWT',
+    description: 'Configuraciï¿½n pï¿½blica del JWT',
     schema: {
       example: {
         algorithm: 'HS256',
