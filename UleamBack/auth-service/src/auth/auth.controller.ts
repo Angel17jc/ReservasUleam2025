@@ -10,12 +10,13 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBadRequestResponse, ApiUnauthorizedResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBadRequestResponse, ApiUnauthorizedResponse, ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ValidateTokenDto } from './dto/validate-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('auth')
@@ -176,5 +177,78 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Token invÃ¡lido o expirado' })
   async getProfile(@Request() req: any) {
     return req.user;
+  }
+
+  /**
+   * Endpoint de validación para servicios P1
+   * Permite a REST, GraphQL y WebSocket verificar tokens JWT
+   */
+  @Post('validate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Validar token JWT (Para servicios P1)',
+    description: 'Endpoint para que servicios REST, GraphQL y WebSocket validen tokens JWT. Verifica firma, expiración, blacklist y estado del usuario.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Token validado correctamente',
+    schema: {
+      example: {
+        valid: true,
+        user: {
+          id: 1,
+          email: 'juan.perez@uleam.edu.ec',
+          nombre: 'Juan',
+          apellido: 'Pérez',
+          tipoUsuarioId: 2,
+          estado: 'activo'
+        }
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Token inválido',
+    schema: {
+      example: {
+        valid: false,
+        error: 'Token expirado'
+      }
+    }
+  })
+  @ApiBadRequestResponse({ description: 'Datos de entrada inválidos' })
+  async validateToken(@Body() validateTokenDto: ValidateTokenDto) {
+    return await this.authService.validateTokenForP1(validateTokenDto.token);
+  }
+
+  /**
+   * Endpoint para obtener configuración pública del JWT
+   * Permite a servicios P1 conocer la configuración del emisor
+   */
+  @Get('public-key')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Obtener configuración pública JWT',
+    description: 'Retorna información pública sobre la configuración JWT (algoritmo, issuer, expiración). Útil para servicios P1.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Configuración pública del JWT',
+    schema: {
+      example: {
+        algorithm: 'HS256',
+        issuer: 'auth-service',
+        accessTokenExpiration: '15m',
+        refreshTokenExpiration: '7d'
+      }
+    }
+  })
+  async getPublicKey() {
+    return {
+      algorithm: 'HS256',
+      issuer: 'auth-service',
+      accessTokenExpiration: '15m',
+      refreshTokenExpiration: '7d'
+    };
   }
 }

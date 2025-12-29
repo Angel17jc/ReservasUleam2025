@@ -256,6 +256,62 @@ export class AuthService {
   }
 
   /**
+   * Validate token for P1 services (REST/GraphQL/WebSocket)
+   * Returns user info if token is valid, null otherwise
+   */
+  async validateTokenForP1(token: string): Promise<{
+    valid: boolean;
+    user?: any;
+    error?: string;
+  }> {
+    try {
+      // Verify JWT signature and expiration
+      const payload = await this.validateToken(token);
+      if (!payload) {
+        return { valid: false, error: 'Invalid or expired token' };
+      }
+
+      // Check if token is blacklisted
+      const isBlacklisted = await this.redisService.isTokenBlacklisted(token);
+      if (isBlacklisted) {
+        return { valid: false, error: 'Token has been revoked' };
+      }
+
+      // Validate token type
+      if (payload.type !== 'access') {
+        return { valid: false, error: 'Invalid token type' };
+      }
+
+      // Get user from database
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) {
+        return { valid: false, error: 'User not found' };
+      }
+
+      // Check user status
+      if (user.estado !== 'activo') {
+        return { valid: false, error: 'User account is inactive or blocked' };
+      }
+
+      // Return user info
+      return {
+        valid: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          nombre: user.nombre,
+          apellido: user.apellido,
+          tipoUsuarioId: user.tipoUsuarioId,
+          estado: user.estado,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Token validation error: ${error.message}`);
+      return { valid: false, error: 'Token validation failed' };
+    }
+  }
+
+  /**
    * Check if refresh token is valid in database
    */
   async isRefreshTokenValid(token: string): Promise<boolean> {
