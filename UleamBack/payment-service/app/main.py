@@ -25,6 +25,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .config import settings
 from .database import check_database_connection, get_db_stats
+from .routes import payments_router
 
 # ===== Logging Configuration =====
 logging.basicConfig(
@@ -157,6 +158,10 @@ async def general_exception_handler(request: Request, exc: Exception):
             "message": "An unexpected error occurred"
         }
     )
+
+
+# ===== API Routes =====
+app.include_router(payments_router, prefix=f"/{settings.API_PREFIX}")
 
 
 # ===== Root Endpoints =====
