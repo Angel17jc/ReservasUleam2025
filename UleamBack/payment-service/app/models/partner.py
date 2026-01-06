@@ -67,6 +67,28 @@ class Partner(Base):
         comment="Partner description or notes"
     )
     
+    # ===== API Credentials =====
+    api_key = Column(
+        String(100),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="Public API key (pk_live_...) for partner identification"
+    )
+    
+    secret_key = Column(
+        String(128),
+        nullable=False,
+        comment="Private secret key (sk_live_...) for HMAC signatures - NEVER expose in responses"
+    )
+    
+    # ===== Contact Information =====
+    email = Column(
+        String(255),
+        nullable=True,
+        comment="Partner contact email"
+    )
+    
     # ===== Webhook Configuration =====
     webhook_url = Column(
         String(500),
@@ -77,7 +99,7 @@ class Partner(Base):
     shared_secret = Column(
         String(128),
         nullable=False,
-        comment="HMAC-SHA256 secret for webhook signature validation"
+        comment="HMAC-SHA256 secret for webhook signature validation (deprecated - use secret_key)"
     )
     
     eventos_suscritos = Column(
@@ -93,6 +115,34 @@ class Partner(Base):
         default=True,
         index=True,
         comment="Partner active status (inactive partners don't receive webhooks)"
+    )
+    
+    # ===== Webhook Statistics =====
+    webhooks_sent = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Total webhooks sent to this partner"
+    )
+    
+    webhooks_succeeded = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Webhooks successfully delivered (2xx response)"
+    )
+    
+    webhooks_failed = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Failed webhook deliveries (errors, timeouts, 5xx)"
+    )
+    
+    last_webhook_at = Column(
+        TIMESTAMP,
+        nullable=True,
+        comment="Timestamp of last webhook delivery attempt (UTC)"
     )
     
     # ===== Audit Fields =====
@@ -141,6 +191,30 @@ class Partner(Base):
         """
         return secrets.token_hex(length // 2)
     
+    @staticmethod
+    def generate_api_key() -> str:
+        """
+        Generate unique API key for partner (public identifier).
+        
+        Format: pk_live_<32_hex_chars>
+        
+        Returns:
+            str: Public API key
+        """
+        return f"pk_live_{secrets.token_hex(16)}"
+    
+    @staticmethod
+    def generate_secret_key() -> str:
+        """
+        Generate secure secret key for HMAC signatures (private).
+        
+        Format: sk_live_<48_hex_chars>
+        
+        Returns:
+            str: Private secret key (must be kept secure)
+        """
+        return f"sk_live_{secrets.token_hex(24)}"
+
     def is_subscribed_to(self, event_type: str) -> bool:
         """
         Check if partner is subscribed to a specific event type.

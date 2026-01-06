@@ -15,6 +15,14 @@ from .webhook import (
     NormalizedWebhookEvent,
     WebhookEventResponse
 )
+from .partner import (
+    PartnerCreate,
+    PartnerResponse,
+    PartnerWithSecret,
+    PartnerUpdate,
+    PartnerListResponse,
+    WebhookDeliveryResult
+)
 
 __all__ = [
     # Payment schemas
@@ -25,5 +33,13 @@ __all__ = [
     
     # Webhook schemas
     "NormalizedWebhookEvent",
-    "WebhookEventResponse"
+    "WebhookEventResponse",
+    
+    # Partner schemas
+    "PartnerCreate",
+    "PartnerResponse",
+    "PartnerWithSecret",
+    "PartnerUpdate",
+    "PartnerListResponse",
+    "WebhookDeliveryResult"
 ]

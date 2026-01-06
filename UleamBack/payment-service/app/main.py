@@ -25,7 +25,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .config import settings
 from .database import check_database_connection, get_db_stats
-from .routes import payments_router
+from .routes import payments_router, webhooks_router, partners_router
 
 # ===== Logging Configuration =====
 logging.basicConfig(
@@ -162,6 +162,8 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # ===== API Routes =====
 app.include_router(payments_router, prefix=f"/{settings.API_PREFIX}")
+app.include_router(webhooks_router, prefix=f"/{settings.API_PREFIX}")
+app.include_router(partners_router, prefix=f"/{settings.API_PREFIX}")
 
 
 # ===== Root Endpoints =====
