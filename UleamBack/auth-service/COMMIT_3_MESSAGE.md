@@ -199,8 +199,6 @@ src/auth/
 5. **Testing**: Probar flujo completo incluyendo casos de error (tokens revocados, expirados, etc.)
 
 ---
-
-**Autor**: Auth Service Team  
-**Fecha**: Enero 2025  
+  
 **Versión**: Commit 3 - Refresh Tokens, Logout y Blacklist  
 **Estado**: ✅ Completado y validado con 7/7 tests

@@ -189,6 +189,4 @@ psql -U postgres -d payment_service_db -c "\dt"
 
 ---
 
-**Status**: ✅ LISTO PARA COMMIT  
-**Date**: 15 de enero de 2026  
-**Author**: Equipo ULEAM Reservas
+

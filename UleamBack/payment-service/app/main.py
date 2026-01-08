@@ -26,6 +26,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from .config import settings
 from .database import check_database_connection, get_db_stats
 from .routes import payments_router, webhooks_router, partners_router
+from .clients.auth_client import init_auth_client
+from .clients.rest_client import init_rest_client
+from .clients.websocket_client import init_websocket_client
+from .middleware import JWTAuthMiddleware
 
 # ===== Logging Configuration =====
 logging.basicConfig(
@@ -65,6 +69,20 @@ async def lifespan(app: FastAPI):
         logger.error("✗ Database connection failed")
         raise RuntimeError("Cannot start service: Database connection failed")
     
+    # Initialize microservice clients
+    try:
+        init_auth_client(str(settings.AUTH_SERVICE_URL), timeout=10.0)
+        logger.info(f"✓ AuthClient initialized: {settings.AUTH_SERVICE_URL}")
+        
+        init_rest_client(str(settings.REST_SERVICE_URL), timeout=10.0)
+        logger.info(f"✓ RestClient initialized: {settings.REST_SERVICE_URL}")
+        
+        init_websocket_client(str(settings.WEBSOCKET_SERVICE_URL), timeout=5.0)
+        logger.info(f"✓ WebSocketClient initialized: {settings.WEBSOCKET_SERVICE_URL}")
+    except Exception as e:
+        logger.error(f"Failed to initialize service clients: {e}")
+        raise
+    
     # Validate payment providers
     try:
         providers = settings.validate_payment_providers()
@@ -84,6 +102,20 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down Payment Service...")
+    
+    # Close service clients
+    from .clients.auth_client import get_auth_client
+    from .clients.rest_client import get_rest_client
+    from .clients.websocket_client import get_websocket_client
+    
+    try:
+        await get_auth_client().close()
+        await get_rest_client().close()
+        await get_websocket_client().close()
+        logger.info("✓ Service clients closed")
+    except Exception as e:
+        logger.warning(f"Error closing service clients: {e}")
+    
     logger.info("Cleanup completed")
 
 

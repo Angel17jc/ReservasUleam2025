@@ -44,59 +44,87 @@ class PaymentService:
     """
     
     @staticmethod
-    def create_payment(
+    async def create_payment(
         db: Session,
         usuario_id: int,
-        payment_data: PaymentCreate
+        payment_data: PaymentCreate,
+        token: str
     ) -> Payment:
         """
         Crea un nuevo pago utilizando el provider especificado.
         
         Flujo:
         1. Validar datos de entrada (Pydantic ya lo hace)
-        2. Obtener adapter del provider
-        3. Crear pago en el provider externo
-        4. Almacenar registro en BD local
-        5. Retornar Payment creado
+        2. Validar que la reserva existe y pertenece al usuario (rest-service)
+        3. Obtener adapter del provider
+        4. Crear pago en el provider externo
+        5. Almacenar registro en BD local
+        6. Enviar notificación al usuario (websocket-service)
+        7. Retornar Payment creado
         
         Args:
             db: Sesión de BD
             usuario_id: ID del usuario que crea el pago
             payment_data: Datos del pago (validados por Pydantic)
+            token: JWT token del usuario para validaciones
         
         Returns:
             Payment: Registro del pago creado
         
         Raises:
-            ValueError: Si el provider no está disponible
+            ValueError: Si el provider no está disponible o la reserva no existe
             Exception: Si falla la creación en el provider
         
         Business Rules:
         - Solo usuarios autenticados pueden crear pagos
+        - La reserva debe existir y pertenecer al usuario
         - El monto debe ser > 0 (validado por schema)
         - El provider debe estar configurado
-        - La reserva debe existir (validado externamente)
         """
         try:
-            # 1. Obtener adapter del provider
+            # 1. Validar que la reserva existe y pertenece al usuario
+            from ..clients.rest_client import get_rest_client
+            from ..clients.websocket_client import get_websocket_client
+            
             logger.info(
                 f"Creating payment: usuario_id={usuario_id}, "
                 f"reserva_id={payment_data.reserva_id}, "
                 f"provider={payment_data.provider}"
             )
             
+            rest_client = get_rest_client()
+            reserva = await rest_client.validate_reserva(
+                reserva_id=payment_data.reserva_id,
+                usuario_id=usuario_id,
+                token=token
+            )
+            
+            if not reserva:
+                logger.warning(
+                    f"Reserva validation failed: reserva_id={payment_data.reserva_id}, "
+                    f"usuario_id={usuario_id}"
+                )
+                raise ValueError(
+                    f"Reserva {payment_data.reserva_id} no encontrada o no pertenece al usuario"
+                )
+            
+            logger.info(f"Reserva validated: reserva_id={payment_data.reserva_id}")
+            
+            # 2. Obtener adapter del provider
             adapter = AdapterFactory.get_adapter(payment_data.provider)
             
-            # 2. Preparar metadata
+            # 3. Preparar metadata
             metadata = payment_data.metadata or {}
             metadata.update({
                 "reserva_id": payment_data.reserva_id,
                 "usuario_id": usuario_id,
+                "espacio_id": reserva.get("espacio_id"),
+                "precio_reserva": reserva.get("precio_total"),
                 "created_by_service": "payment-service",
                 "created_at": datetime.utcnow().isoformat()
             })
             
-            # 3. Crear pago en el provider externo
+            # 4. Crear pago en el provider externo
             provider_response = adapter.create_payment(
                 amount=float(payment_data.amount),
                 currency=payment_data.currency,
@@ -132,8 +160,49 @@ class PaymentService:
             
             logger.info(
                 f"Payment created successfully: id={payment.id}, "
-                f"external_id={payment.external_payment_id}"
+                f"external_id={payment.external_payment_id}, "
+                f"status={payment_status.value}"
             )
+            
+            # 6. Enviar notificación al usuario (no bloqueante)
+            try:
+                websocket_client = get_websocket_client()
+                
+                payment_dict = {
+                    "id": payment.id,
+                    "external_payment_id": payment.external_payment_id,
+                    "reserva_id": payment.reserva_id,
+                    "amount": float(payment.amount),
+                    "currency": payment.currency,
+                    "status": payment.status.value,
+                    "provider_name": payment.provider_name
+                }
+                
+                if payment.is_completed():
+                    await websocket_client.notify_payment_success(usuario_id, payment_dict)
+                    
+                    # Actualizar estado de la reserva a "confirmada"
+                    await rest_client.update_reserva_status(
+                        reserva_id=payment_data.reserva_id,
+                        estado="confirmada",
+                        token=token
+                    )
+                    
+                    # Notificar que la reserva fue confirmada
+                    await websocket_client.notify_reserva_confirmed(
+                        usuario_id=usuario_id,
+                        reserva_id=payment_data.reserva_id,
+                        payment_id=payment.id
+                    )
+                    
+                    logger.info(f"Reserva confirmed and user notified: reserva_id={payment_data.reserva_id}")
+                
+                elif payment.status == PaymentStatus.FAILED:
+                    await websocket_client.notify_payment_failed(usuario_id, payment_dict)
+                
+            except Exception as e:
+                # No fallar la creación del pago si falla la notificación
+                logger.warning(f"Failed to send notification: {str(e)}")
             
             return payment
         

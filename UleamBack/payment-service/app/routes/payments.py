@@ -22,6 +22,7 @@ from ..schemas.payment import (
 )
 from ..services.payment_service import PaymentService
 from ..models.payment import Payment
+from ..dependencies import get_current_user_id, get_current_token, get_current_user
 
 import logging
 
@@ -30,30 +31,33 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
-# TODO: Implementar en Commit 4 - Middleware de autenticación JWT
-# Por ahora, usamos usuario_id hardcodeado para pruebas
-MOCK_USER_ID = 1  # Simula usuario autenticado
-
-
 @router.post(
     "",
     response_model=PaymentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear nuevo pago",
-    description="Crea un nuevo pago utilizando el provider especificado"
+    description="Crea un nuevo pago utilizando el provider especificado (requiere autenticación JWT)"
 )
-def create_payment(
+async def create_payment(
     payment_data: PaymentCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_id: int = Depends(get_current_user_id),
+    token: str = Depends(get_current_token)
 ):
     """
-    Crea un nuevo pago.
+    Crea un nuevo pago (requiere autenticación JWT).
     
     **Flow**:
-    1. Validar datos de entrada
-    2. Crear pago en el provider externo (Stripe, Mock, etc.)
-    3. Almacenar registro en BD
-    4. Retornar Payment creado
+    1. Autenticar usuario (JWT)
+    2. Validar que la reserva existe y pertenece al usuario
+    3. Crear pago en el provider externo (Stripe, Mock, etc.)
+    4. Almacenar registro en BD
+    5. Actualizar estado de reserva (si pago exitoso)
+    6. Enviar notificación en tiempo real al usuario
+    7. Retornar Payment creado
+    
+    **Headers**:
+    - Authorization: Bearer <token> (requerido)
     
     **Request Body**:
     ```json
@@ -71,21 +75,20 @@ def create_payment(
     **Response**: Payment creado con ID y external_payment_id
     
     **Errors**:
-    - 400: Datos inválidos
+    - 400: Reserva no encontrada o no pertenece al usuario
+    - 401: Token inválido o expirado
     - 422: Validación fallida (Pydantic)
     - 500: Error del provider o interno
     """
     try:
-        # TODO Commit 4: Obtener usuario_id del JWT
-        usuario_id = MOCK_USER_ID
-        
-        payment = PaymentService.create_payment(
+        payment = await PaymentService.create_payment(
             db=db,
             usuario_id=usuario_id,
-            payment_data=payment_data
+            payment_data=payment_data,
+            token=token
         )
         
-        logger.info(f"Payment created via API: {payment.id}")
+        logger.info(f"Payment created via API: {payment.id}, user={usuario_id}")
         
         return payment
     
@@ -108,14 +111,20 @@ def create_payment(
     "/{payment_id}",
     response_model=PaymentResponse,
     summary="Obtener pago por ID",
-    description="Retorna los detalles de un pago específico"
+    description="Retorna los detalles de un pago específico (requiere autenticación JWT)"
 )
 def get_payment(
     payment_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_id: int = Depends(get_current_user_id)
 ):
     """
-    Obtiene un pago por su ID.
+    Obtiene un pago por su ID (requiere autenticación JWT).
+    
+    El usuario solo puede acceder a sus propios pagos.
+    
+    **Headers**:
+    - Authorization: Bearer <token> (requerido)
     
     **Path Parameters**:
     - `payment_id`: ID del pago
@@ -123,18 +132,14 @@ def get_payment(
     **Response**: Detalles completos del pago
     
     **Errors**:
+    - 401: Token inválido o expirado
+    - 403: El pago no pertenece al usuario
     - 404: Pago no encontrado
-    
-    **Security**: 
-    TODO Commit 4 - Validar que el usuario solo acceda a sus propios pagos
     """
-    # TODO Commit 4: Obtener usuario_id del JWT y validar ownership
-    usuario_id = MOCK_USER_ID
-    
     payment = PaymentService.get_payment(
         db=db,
         payment_id=payment_id,
-        usuario_id=None  # Por ahora sin validación
+        usuario_id=usuario_id  # Validar ownership
     )
     
     if not payment:
@@ -151,54 +156,51 @@ def get_payment(
     "",
     response_model=PaymentListResponse,
     summary="Listar pagos",
-    description="Lista pagos con filtros y paginación"
+    description="Lista pagos del usuario autenticado con filtros y paginación"
 )
 def list_payments(
     reserva_id: Optional[int] = Query(None, description="Filtrar por ID de reserva"),
-    status: Optional[str] = Query(None, description="Filtrar por estado", pattern="^(pending|completed|failed|refunded|cancelled)$"),
-    provider: Optional[str] = Query(None, description="Filtrar por provider", pattern="^(mock|stripe|mercadopago)$"),
+    provider: Optional[str] = Query(None, description="Filtrar por provider"),
+    status_filter: Optional[str] = Query(None, alias="status", description="Filtrar por status"),
     page: int = Query(1, ge=1, description="Número de página"),
-    page_size: int = Query(10, ge=1, le=100, description="Tamaño de página"),
-    db: Session = Depends(get_db)
+    per_page: int = Query(10, ge=1, le=100, description="Elementos por página"),
+    db: Session = Depends(get_db),
+    usuario_id: int = Depends(get_current_user_id)
 ):
     """
-    Lista pagos con filtros opcionales y paginación.
+    Lista los pagos del usuario autenticado con filtros y paginación.
+    
+    **Headers**:
+    - Authorization: Bearer <token> (requerido)
     
     **Query Parameters**:
-    - `reserva_id`: Filtrar por reserva
-    - `status`: Filtrar por estado (pending, completed, failed, etc.)
-    - `provider`: Filtrar por provider (mock, stripe, mercadopago)
-    - `page`: Número de página (default: 1)
-    - `page_size`: Resultados por página (default: 10, max: 100)
+    - `reserva_id`: Filtrar por reserva específica
+    - `provider`: Filtrar por provider (mock, stripe, etc.)
+    - `status`: Filtrar por estado (pending, completed, failed, refunded)
+    - `page`: Página actual (default: 1)
+    - `per_page`: Elementos por página (default: 10, max: 100)
     
-    **Response**: Lista paginada de pagos con metadata
+    **Response**: Lista paginada de pagos del usuario
     
-    **Example**:
-    ```
-    GET /payments?status=completed&page=1&page_size=20
-    ```
+    **Errors**:
+    - 401: Token inválido o expirado
     """
-    # TODO Commit 4: Filtrar por usuario_id del JWT
-    usuario_id = None  # Por ahora lista todos
-    
-    skip = (page - 1) * page_size
-    
     payments, total = PaymentService.list_payments(
         db=db,
-        usuario_id=usuario_id,
+        usuario_id=usuario_id,  # Filtrar por usuario autenticado
         reserva_id=reserva_id,
-        status=status,
+        status=status_filter,
         provider=provider,
-        skip=skip,
-        limit=page_size
+        skip=(page - 1) * per_page,
+        limit=per_page
     )
     
-    logger.info(f"Listed payments: total={total}, page={page}")
+    logger.info(f"Listed payments: total={total}, page={page}, user={usuario_id}")
     
     return PaymentListResponse(
         total=total,
         page=page,
-        page_size=page_size,
+        page_size=per_page,
         payments=payments
     )
 
@@ -206,13 +208,17 @@ def list_payments(
 @router.get(
     "/stats/summary",
     summary="Estadísticas de pagos",
-    description="Retorna estadísticas agregadas de pagos"
+    description="Retorna estadísticas agregadas de pagos del usuario autenticado"
 )
 def get_payment_stats(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_id: int = Depends(get_current_user_id)
 ):
     """
-    Obtiene estadísticas de pagos.
+    Obtiene estadísticas de pagos del usuario autenticado.
+    
+    **Headers**:
+    - Authorization: Bearer <token> (requerido)
     
     **Response**:
     ```json
@@ -229,13 +235,11 @@ def get_payment_stats(
     }
     ```
     
-    TODO Commit 4: Filtrar por usuario_id del JWT
+    **Errors**:
+    - 401: Token inválido o expirado
     """
-    # TODO Commit 4: usuario_id = get_current_user_id()
-    usuario_id = None  # Por ahora stats globales
-    
     stats = PaymentService.get_payment_statistics(db=db, usuario_id=usuario_id)
     
-    logger.info("Payment statistics retrieved")
+    logger.info(f"Payment statistics retrieved for user={usuario_id}")
     
     return stats

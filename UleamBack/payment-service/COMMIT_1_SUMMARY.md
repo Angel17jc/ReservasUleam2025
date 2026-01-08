@@ -2,7 +2,7 @@
 
 ## ✅ Implementación Exitosa
 
-El **Commit 1** del Payment Service (Pilar 2) ha sido implementado exitosamente con calidad de ingeniería senior, aplicando las mejores prácticas de desarrollo de software.
+
 
 ---
 
@@ -404,6 +404,4 @@ El **Commit 1** establece una base sólida y profesional para el Payment Service
 
 ---
 
-*Fecha de implementación: 15 de enero de 2026*  
-*Versión: 1.0.0*  
-*Commit: 1/4*
+

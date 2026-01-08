@@ -500,6 +500,6 @@ El Auth Service está **completamente listo** para ser integrado con los servici
 
 ---
 
-**Fecha de implementación**: Enero 2025  
+ 
 **Versión**: 1.0.0  
 **Estado**: ✅ Completado y testeado
