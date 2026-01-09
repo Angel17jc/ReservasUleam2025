@@ -292,6 +292,84 @@ class HmacService:
             return None
     
     @staticmethod
+    def verify_signature(
+        payload: str | Dict[str, Any],
+        signature: str,
+        secret_key: str,
+        timestamp: Optional[str] = None,
+        tolerance_seconds: int = 300
+    ) -> bool:
+        """
+        Verifica firma HMAC con validación opcional de timestamp.
+        
+        Combina validación de firma HMAC-SHA256 y verificación de timestamp
+        para prevenir ataques de replay. Método principal para validar webhooks
+        entrantes de partners.
+        
+        Args:
+            payload: JSON string o dict recibido en webhook
+            signature: Firma HMAC desde header X-Webhook-Signature
+            secret_key: Secret key del partner (partner.shared_secret)
+            timestamp: Optional timestamp desde header X-Webhook-Timestamp
+            tolerance_seconds: Tolerancia para timestamp (default: 300s = 5min)
+        
+        Returns:
+            bool: True si firma válida Y timestamp reciente, False en caso contrario
+        
+        Security:
+            - Valida firma HMAC-SHA256 con timing-safe comparison
+            - Verifica timestamp para prevenir replay attacks
+            - Si no hay timestamp, solo valida firma (menos seguro)
+        
+        Example:
+            >>> # Con timestamp (recomendado)
+            >>> is_valid = HmacService.verify_signature(
+            ...     payload='{"event":"booking.confirmed"}',
+            ...     signature="abc123...",
+            ...     secret_key="partner_secret",
+            ...     timestamp=str(int(time.time())),
+            ...     tolerance_seconds=300
+            ... )
+            >>> 
+            >>> # Sin timestamp (solo valida firma)
+            >>> is_valid = HmacService.verify_signature(
+            ...     payload=payload_dict,
+            ...     signature=signature,
+            ...     secret_key=secret
+            ... )
+        
+        Raises:
+            ValueError: Si secret_key o signature están vacíos
+        """
+        # 1. Validar firma HMAC
+        is_valid_signature = HmacService.validate_signature(
+            payload=payload,
+            signature=signature,
+            secret=secret_key
+        )
+        
+        if not is_valid_signature:
+            logger.warning("HMAC signature validation failed")
+            return False
+        
+        # 2. Validar timestamp si se proporciona
+        if timestamp:
+            is_valid_timestamp = HmacService.verify_webhook_timestamp(
+                timestamp_str=timestamp,
+                tolerance_seconds=tolerance_seconds
+            )
+            
+            if not is_valid_timestamp:
+                logger.warning("Webhook timestamp validation failed")
+                return False
+        else:
+            logger.warning(
+                "No timestamp provided - webhook vulnerable to replay attacks"
+            )
+        
+        return True
+    
+    @staticmethod
     def verify_webhook_timestamp(
         timestamp_str: str,
         tolerance_seconds: int = 300
@@ -303,7 +381,7 @@ class HmacService:
         Standard tolerance is 5 minutes (300 seconds).
         
         Args:
-            timestamp_str: ISO timestamp string from webhook
+            timestamp_str: ISO timestamp string or Unix timestamp from webhook
             tolerance_seconds: Maximum age in seconds (default: 300)
         
         Returns:
@@ -328,8 +406,14 @@ class HmacService:
         from datetime import datetime, timedelta
         
         try:
-            # Parse timestamp
-            webhook_time = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            # Parse timestamp (soporta ISO string o Unix timestamp)
+            if timestamp_str.isdigit():
+                # Unix timestamp (segundos desde epoch)
+                webhook_time = datetime.utcfromtimestamp(int(timestamp_str))
+            else:
+                # ISO timestamp string
+                webhook_time = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            
             now = datetime.utcnow()
             
             # Calculate age

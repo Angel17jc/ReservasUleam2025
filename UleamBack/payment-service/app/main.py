@@ -25,10 +25,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .config import settings
 from .database import check_database_connection, get_db_stats
-from .routes import payments_router, webhooks_router, partners_router
-from .clients.auth_client import init_auth_client
-from .clients.rest_client import init_rest_client
-from .clients.websocket_client import init_websocket_client
+from .routes import payments_router, webhooks_router, partners_router, partners_webhook_router
+from .clients.auth_client import init_auth_client, get_auth_client
+from .clients.rest_client import init_rest_client, get_rest_client
+from .clients.websocket_client import init_websocket_client, get_websocket_client
 from .middleware import JWTAuthMiddleware
 
 # ===== Logging Configuration =====
@@ -196,6 +196,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(payments_router, prefix=f"/{settings.API_PREFIX}")
 app.include_router(webhooks_router, prefix=f"/{settings.API_PREFIX}")
 app.include_router(partners_router, prefix=f"/{settings.API_PREFIX}")
+app.include_router(partners_webhook_router, prefix=f"/{settings.API_PREFIX}")  # Webhooks INBOUND
 
 
 # ===== Root Endpoints =====
