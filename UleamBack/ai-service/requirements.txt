@@ -1,0 +1,39 @@
+# ============================================
+# AI SERVICE - PYTHON DEPENDENCIES
+# ============================================
+# Framework FastAPI
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# Database ORM
+sqlalchemy==2.0.25
+psycopg[binary]>=3.1.0
+alembic==1.13.1
+
+# Validation & Configuration
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+
+# JWT Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# HTTP Client for service integration
+httpx==0.26.0
+
+# LLM Providers (GRATIS)
+google-generativeai==0.3.2    # Google Gemini Pro & Vision
+groq==0.4.0                    # Groq (Llama 3, Mixtral)
+
+# Image Processing (para Commit 2)
+pillow>=11.0.0                 # Image manipulation (compatible con Python 3.14)
+
+# Logging & Monitoring
+python-json-logger==2.0.7      # Structured JSON logging
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+httpx==0.26.0                  # For testing async HTTP

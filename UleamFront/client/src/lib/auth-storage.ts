@@ -7,6 +7,7 @@ type StoredUser = {
   email: string;
   role: 'user' | 'admin';
   tipoUsuarioNombre?: string;
+  tipoUsuarioId?: number;
 };
 
 function normalizeUser(value: any): StoredUser | null {
@@ -21,12 +22,16 @@ function normalizeUser(value: any): StoredUser | null {
   }
   if (!value.id || !value.email) return null;
   const role = value.role ?? value.rol ?? 'user';
+  // Detectar id/nombre del tipo de usuario en distintas formas que pueda venir del backend
+  const tipoUsuarioId = value.tipoUsuarioId ?? value.tipo_usuario_id ?? (value.tipo_usuario && value.tipo_usuario.id) ?? undefined;
+  const tipoUsuarioNombre = value.tipoUsuarioNombre ?? value.tipo_usuario?.nombre ?? value.tipo_usuario_nombre ?? undefined;
   return {
     id: String(value.id),
     nombre: value.nombre ?? 'Usuario',
     email: value.email,
     role: role === 'admin' ? 'admin' : 'user',
-    tipoUsuarioNombre: value.tipoUsuarioNombre,
+    tipoUsuarioNombre,
+    tipoUsuarioId,
   };
 }
 

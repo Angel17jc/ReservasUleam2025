@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr
 from datetime import timedelta, date, time as time_cls
@@ -287,6 +287,9 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     
+    # Cargar explícitamente la relación tipo_usuario después del refresh
+    db.refresh(new_user, ['tipo_usuario'])
+    
     access_token = create_access_token(data={"sub": new_user.id})
     
     return {
@@ -296,14 +299,22 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
             "id": new_user.id,
             "email": new_user.email,
             "nombre": new_user.nombre,
-            "apellido": new_user.apellido
+            "apellido": new_user.apellido,
+            "telefono": new_user.telefono,
+            "tipo_usuario_id": new_user.tipo_usuario_id,
+            "tipo_usuario": {
+                "id": new_user.tipo_usuario.id,
+                "nombre": new_user.tipo_usuario.nombre
+            } if new_user.tipo_usuario else None,
+            "estado": new_user.estado,
+            "avatar_url": new_user.avatar_url
         }
     }
 
 
 @app.post("/api/auth/login", response_model=TokenResponse)
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(usuario.Usuario).filter(usuario.Usuario.email == request.email).first()
+    user = db.query(usuario.Usuario).options(joinedload(usuario.Usuario.tipo_usuario)).filter(usuario.Usuario.email == request.email).first()
     
     if not user or not verify_password(request.password, user.password_hash):
         raise HTTPException(
@@ -324,7 +335,14 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             "email": user.email,
             "nombre": user.nombre,
             "apellido": user.apellido,
-            "tipo_usuario_id": user.tipo_usuario_id
+            "telefono": user.telefono,
+            "tipo_usuario_id": user.tipo_usuario_id,
+            "tipo_usuario": {
+                "id": user.tipo_usuario.id,
+                "nombre": user.tipo_usuario.nombre
+            } if user.tipo_usuario else None,
+            "estado": user.estado,
+            "avatar_url": user.avatar_url
         }
     }
 
@@ -360,7 +378,12 @@ def get_me(current_user: usuario.Usuario = Depends(get_current_user)):
         "apellido": current_user.apellido,
         "telefono": current_user.telefono,
         "tipo_usuario_id": current_user.tipo_usuario_id,
-        "estado": current_user.estado
+        "tipo_usuario": {
+            "id": current_user.tipo_usuario.id,
+            "nombre": current_user.tipo_usuario.nombre
+        } if current_user.tipo_usuario else None,
+        "estado": current_user.estado,
+        "avatar_url": current_user.avatar_url
     }
 
 

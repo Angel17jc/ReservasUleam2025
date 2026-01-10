@@ -194,7 +194,7 @@ export class AuthService {
    */
   async generateAccessToken(userId: number, email: string, tipoUsuarioId: number): Promise<string> {
     const payload = {
-      sub: userId,
+      sub: String(userId),  // Convert to string for compatibility with python-jose
       email,
       tipo_usuario_id: tipoUsuarioId,
       type: 'access',
@@ -213,7 +213,7 @@ export class AuthService {
     userAgent?: string,
   ): Promise<string> {
     const payload = {
-      sub: userId,
+      sub: String(userId),  // Convert to string for compatibility with python-jose
       email,
       type: 'refresh',
     };

@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from ..database import get_db
 from ..models.usuario import Usuario
 from .jwt_handler import decode_access_token
@@ -50,7 +50,7 @@ def get_current_user(
             detail="Invalid authentication credentials"
         )
 
-    user = db.query(Usuario).filter(Usuario.id == user_id).first()
+    user = db.query(Usuario).options(joinedload(Usuario.tipo_usuario)).filter(Usuario.id == user_id).first()
     if user is None:
         logger.warning("User referenced in token not found (user_id=%s)", user_id)
         raise HTTPException(

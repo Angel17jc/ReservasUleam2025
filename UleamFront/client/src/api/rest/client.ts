@@ -1,8 +1,12 @@
 import { env, ensureEnvValue } from '@/config/env';
+// Nuevo: soporte para enviar las llamadas de /auth al auth-service
+const authBaseFromEnv = (import.meta.env.VITE_AUTH_BASE_URL as string | undefined)?.trim() ?? '';
 import { authStorage } from '@/lib/auth-storage';
 
 export type RestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+// Prefijos separados: REST (P1) usa `/api`; Auth (P2) usa `/api/v1`
 const API_PREFIX = '/api';
+const AUTH_API_PREFIX = '/api/v1';
 
 export interface RestRequestOptions {
   method?: RestMethod;
@@ -13,9 +17,13 @@ export interface RestRequestOptions {
 }
 
 function buildUrl(path: string, query?: RestRequestOptions['query']) {
-  const base = ensureEnvValue('restBaseUrl').replace(/\/$/, '');
+  // Si la ruta es de autenticación, usar el authBase si está configurado.
+  const isAuthPath = path.startsWith('/auth') || path.startsWith('auth');
+  const baseCandidate = isAuthPath && authBaseFromEnv ? authBaseFromEnv : ensureEnvValue('restBaseUrl');
+  const base = baseCandidate.replace(/\/$/, '');
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const withPrefix = normalizedPath.startsWith(API_PREFIX) ? normalizedPath : `${API_PREFIX}${normalizedPath}`;
+  const prefix = isAuthPath ? AUTH_API_PREFIX : API_PREFIX;
+  const withPrefix = normalizedPath.startsWith(prefix) ? normalizedPath : `${prefix}${normalizedPath}`;
   const url = new URL(`${base}${withPrefix}`);
 
   if (query) {

@@ -17,7 +17,7 @@ import { LoginDialog } from '@/components/auth/LoginDialog';
 import { useLocation } from 'wouter';
 
 export function Navbar() {
-  const { user, isAdmin, logout, isAuthenticated, roleLabel } = useAuth();
+  const { user, isAdmin, logout, isAuthenticated, roleLabel, isLoading } = useAuth();
   const [loginOpen, setLoginOpen] = useState(false);
   const [, navigate] = useLocation();
 
@@ -32,12 +32,12 @@ export function Navbar() {
       </div>
 
       <div className="flex items-center gap-4">
-        {roleLabel && (
+        {!isLoading && roleLabel && (
           <span className="text-sm text-white/80 border border-white/20 rounded-full px-3 py-1">
             {roleLabel}
           </span>
         )}
-        {isAdmin && <AdminBadge />}
+        {!isLoading && isAdmin && <AdminBadge />}
 
         {!isAuthenticated && (
           <>

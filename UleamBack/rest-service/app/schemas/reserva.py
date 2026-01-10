@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from datetime import date, time
-from typing import Optional
+from pydantic import BaseModel, field_validator
+from datetime import date, time, datetime
+from typing import Optional, Union
 
 class ReservaCreate(BaseModel):
     espacio_id: int
@@ -13,6 +13,25 @@ class ReservaCreate(BaseModel):
     es_bloqueo: bool = False
     motivo_bloqueo: Optional[str] = None
     asistentes_estimada: Optional[int] = None
+    
+    @field_validator('hora_inicio', 'hora_fin', mode='before')
+    @classmethod
+    def parse_time(cls, v):
+        """Convert string time to time object"""
+        if isinstance(v, time):
+            return v
+        if isinstance(v, str):
+            try:
+                # Parse HH:MM format (most common)
+                parts = v.split(':')
+                if len(parts) >= 2:
+                    hour = int(parts[0])
+                    minute = int(parts[1])
+                    second = int(parts[2]) if len(parts) > 2 else 0
+                    return time(hour, minute, second)
+            except (ValueError, IndexError):
+                pass
+        return v
 
 class ReservaResponse(BaseModel):
     id: int

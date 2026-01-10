@@ -17,9 +17,12 @@ export type UserProfile = {
 
 export type AuthResponse = { token: string; user: UserProfile };
 
+// El auth-service retorna campos en camelCase: accessToken, refreshToken, expiresIn
 type BackendAuthResponse = {
-  access_token: string;
-  token_type: string;
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  tokenType?: string;
   user: {
     id: number;
     email: string;
@@ -53,14 +56,15 @@ export const authApi = {
       throw new Error('Configura VITE_REST_BASE_URL para usar el backend REST');
     }
     const res = await restClient.post<BackendAuthResponse>('/auth/login', input);
-    return { token: res.access_token, user: mapBackendUser(res.user) };
+    // Mapear la respuesta del backend (accessToken en camelCase)
+    return { token: (res as any).accessToken ?? (res as any).access_token ?? '', user: mapBackendUser(res.user) };
   },
   async register(input: RegisterInput): Promise<AuthResponse> {
     if (!isRestConfigured()) {
       throw new Error('Configura VITE_REST_BASE_URL para usar el backend REST');
     }
     const res = await restClient.post<BackendAuthResponse>('/auth/register', input);
-    return { token: res.access_token, user: mapBackendUser(res.user) };
+    return { token: (res as any).accessToken ?? (res as any).access_token ?? '', user: mapBackendUser(res.user) };
   },
   async me(): Promise<UserProfile> {
     if (!isRestConfigured()) {

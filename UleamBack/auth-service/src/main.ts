@@ -15,12 +15,24 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 9000);
   const apiPrefix = configService.get<string>('API_PREFIX', 'api/v1');
-  const corsOrigin = configService.get<string>('CORS_ORIGIN', 'http://localhost:5173');
+  const corsOriginEnv = configService.get<string>('CORS_ORIGIN', 'http://localhost:5173');
 
   // Security - Helmet
   app.use(helmet());
 
   // CORS
+  // Support a single origin, a comma-separated list, or a function that validates origin.
+  let corsOrigin: string | string[] | ((origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => void) = corsOriginEnv;
+
+  if (corsOriginEnv.includes(',')) {
+    const allowed = corsOriginEnv.split(',').map((s) => s.trim());
+    corsOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (!origin) return callback(null, true);
+      if (allowed.indexOf(origin) !== -1) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    };
+  }
+
   app.enableCors({
     origin: corsOrigin,
     credentials: true,

@@ -2,6 +2,7 @@ import { ReactNode, CSSProperties } from 'react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Navbar } from '@/components/Navbar';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const style: CSSProperties = {
@@ -9,8 +10,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     '--sidebar-width-icon': '4rem',
   };
 
+  const { isAdmin } = useAuth();
+
   return (
-    <SidebarProvider style={style}>
+    <SidebarProvider style={style} defaultOpen={isAdmin ? true : undefined}>
       <div className="flex h-screen w-full">
         <AppSidebar variant="admin" />
         <div className="flex flex-col flex-1 overflow-hidden">

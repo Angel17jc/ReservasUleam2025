@@ -1,0 +1,431 @@
+{
+	"info": {
+		"_postman_id": "ai-service-uleam-2025",
+		"name": "AI Service - Sistema Reservas ULEAM",
+		"description": "Colección de pruebas para el servicio de IA con Gemini y Groq",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Checks",
+			"item": [
+				{
+					"name": "Health Check Básico",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5000/api/v1/health",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "health"]
+						},
+						"description": "Verificar que el servicio está activo"
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check Detallado",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5000/api/v1/health/detailed",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "health", "detailed"]
+						},
+						"description": "Estado detallado: BD, providers, configuración"
+					},
+					"response": []
+				},
+				{
+					"name": "Root Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5000/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": [""]
+						},
+						"description": "Info del servicio y endpoints disponibles"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Providers",
+			"item": [
+				{
+					"name": "Listar Providers Disponibles",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/providers",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "providers"]
+						},
+						"description": "Lista todos los LLM providers (Gemini, Groq) con sus modelos"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Chat - Gemini",
+			"item": [
+				{
+					"name": "Chat Simple - Gemini",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Hola, ¿cómo puedo reservar un espacio en la universidad?\",\n  \"usuario_id\": 1,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Primera interacción - crea nueva conversación"
+					},
+					"response": []
+				},
+				{
+					"name": "Chat Continuación - Gemini",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Qué espacios están disponibles?\",\n  \"usuario_id\": 1,\n  \"conversation_id\": 1,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Continuar conversación existente (usa conversation_id del response anterior)"
+					},
+					"response": []
+				},
+				{
+					"name": "Chat Creativo - Gemini",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Dame 5 ideas creativas para organizar un evento en el auditorio\",\n  \"usuario_id\": 1,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.9\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Temperatura alta (0.9) = respuestas más creativas"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Chat - Groq (Ultra Rápido)",
+			"item": [
+				{
+					"name": "Chat Simple - Groq Llama 3",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Explícame el proceso de reserva de espacios\",\n  \"usuario_id\": 2,\n  \"provider\": \"groq\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Groq con Llama 3 - Ultra rápido (respuesta en <1 segundo)"
+					},
+					"response": []
+				},
+				{
+					"name": "Chat Preciso - Groq",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Dame los pasos exactos para cancelar una reserva\",\n  \"usuario_id\": 2,\n  \"provider\": \"groq\",\n  \"temperature\": 0.3\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Temperatura baja (0.3) = respuestas más precisas y determinísticas"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "5. Gestión de Conversaciones",
+			"item": [
+				{
+					"name": "Listar Conversaciones del Usuario",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/conversations/1?limit=10&offset=0",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "conversations", "1"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Número de conversaciones a retornar"
+								},
+								{
+									"key": "offset",
+									"value": "0",
+									"description": "Paginación"
+								}
+							]
+						},
+						"description": "Obtener todas las conversaciones del usuario_id=1"
+					},
+					"response": []
+				},
+				{
+					"name": "Ver Mensajes de Conversación",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/conversations/1/messages",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "conversations", "1", "messages"]
+						},
+						"description": "Ver todos los mensajes de la conversación ID=1"
+					},
+					"response": []
+				},
+				{
+					"name": "Eliminar Conversación",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/conversations/1",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "conversations", "1"]
+						},
+						"description": "Eliminar conversación ID=1 y todos sus mensajes"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "6. Comparación Providers",
+			"item": [
+				{
+					"name": "Mismo Prompt - Gemini",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Cuáles son los requisitos para reservar el auditorio principal?\",\n  \"usuario_id\": 3,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Test con Gemini"
+					},
+					"response": []
+				},
+				{
+					"name": "Mismo Prompt - Groq",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Cuáles son los requisitos para reservar el auditorio principal?\",\n  \"usuario_id\": 3,\n  \"provider\": \"groq\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Test con Groq - Comparar velocidad y calidad"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "7. Tests Avanzados",
+			"item": [
+				{
+					"name": "Context Awareness Test",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Hola, quiero reservar un espacio para 50 personas\",\n  \"usuario_id\": 4,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Mensaje 1/3 - Establecer contexto"
+					},
+					"response": []
+				},
+				{
+					"name": "Context Awareness Test - Mensaje 2",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Cuánto cuesta?\",\n  \"usuario_id\": 4,\n  \"conversation_id\": \"<ID_DEL_ANTERIOR>\",\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Mensaje 2/3 - Referencia implícita al contexto"
+					},
+					"response": []
+				},
+				{
+					"name": "Context Awareness Test - Mensaje 3",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Y si son solo 30 personas?\",\n  \"usuario_id\": 4,\n  \"conversation_id\": \"<ID_DEL_ANTERIOR>\",\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/v1/chat/message",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "5000",
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "Mensaje 3/3 - Debe recordar el contexto completo"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "api_prefix",
+			"value": "/api/v1",
+			"type": "string"
+		}
+	]
+}

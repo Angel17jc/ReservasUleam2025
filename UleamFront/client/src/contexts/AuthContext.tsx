@@ -8,6 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
+  roleLabel: string | null;
   login: (credentials: Credentials) => Promise<UserProfile>;
   logout: () => Promise<void>;
   setUser: (user: UserProfile | null) => void;
@@ -16,7 +17,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(authStorage.getUser());
+  // No rehidratar `user` desde localStorage inmediatamente to avoid showing stale role labels.
+  // Mantener sólo el token y solicitar `/auth/me` para obtener el usuario real y actualizado.
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(authStorage.getToken());
   const [isLoading, setIsLoading] = useState(true);
 
@@ -27,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Si tenemos token, validarlo y obtener el usuario actual desde el backend.
     authApi
       .me()
       .then((me) => {
@@ -34,7 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authStorage.setUser(me);
         setToken(savedToken);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn('[auth] Falló rehidratación de usuario:', err);
         authStorage.clearAll();
         setUser(null);
         setToken(null);
@@ -62,20 +67,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const value = useMemo(
-    () => ({
+  const value = useMemo(() => {
+    const isAdminComputed =
+      Boolean(user?.tipoUsuarioId && Number(user.tipoUsuarioId) === 1) ||
+      user?.role === 'admin' ||
+      Boolean(user?.tipoUsuarioNombre && String(user.tipoUsuarioNombre).toLowerCase().includes('admin'));
+
+    const roleLabelComputed = isAdminComputed
+      ? 'Administrador'
+      : user?.tipoUsuarioNombre ?? (user?.role === 'admin' ? 'Administrador' : 'Usuario');
+
+    return {
       user,
       token,
       isAuthenticated: Boolean(token && user),
-      isAdmin: user?.role === 'admin',
-      roleLabel: user?.tipoUsuarioNombre ?? (user?.role === 'admin' ? 'Administrador' : 'Usuario'),
+      isAdmin: isAdminComputed,
+      roleLabel: roleLabelComputed,
       isLoading,
       login,
       logout,
       setUser,
-    }),
-    [user, token, isLoading],
-  );
+    };
+  }, [user, token, isLoading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

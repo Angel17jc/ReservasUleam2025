@@ -69,14 +69,35 @@ def post_reserva(data: ReservaCreate, db: Session = Depends(get_db), current_use
     )
 
 @router.get("")
-def list_reservas(usuario_id: int = None, espacio_id: int = None, estado_id: int = None, db: Session = Depends(get_db)):
+def list_reservas(
+    usuario_id: int = None, 
+    espacio_id: int = None, 
+    estado_id: int = None, 
+    db: Session = Depends(get_db),
+    current_user: models.usuario.Usuario = Depends(get_current_user)
+):
+    """
+    List reservas with authentication.
+    Regular users see only their own reservas.
+    Admins can filter by usuario_id or see all.
+    """
     q = db.query(reserva_model.Reserva)
-    if usuario_id:
+    
+    # Security: Regular users can only see their own reservas
+    is_admin = current_user.tipo_usuario and current_user.tipo_usuario.nivel_prioridad == 1
+    
+    if not is_admin:
+        # Force filter by current user for non-admins
+        q = q.filter(reserva_model.Reserva.usuario_id == current_user.id)
+    elif usuario_id:
+        # Admins can filter by specific user
         q = q.filter(reserva_model.Reserva.usuario_id == usuario_id)
+    
     if espacio_id:
         q = q.filter(reserva_model.Reserva.espacio_id == espacio_id)
     if estado_id:
         q = q.filter(reserva_model.Reserva.estado_id == estado_id)
+    
     rows = q.order_by(reserva_model.Reserva.fecha.desc()).all()
     out = []
     for r in rows:

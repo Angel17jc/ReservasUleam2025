@@ -3,14 +3,24 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/uleam_reservas")
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-09f26e402edf8c5d56c0")
+    # Database configuration - same as auth-service
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5432
+    DB_USERNAME: str = "Reservas_ULEAM"
+    DB_PASSWORD: str = "123456"
+    DB_NAME: str = "reservasuleam"
+    
+    # JWT configuration - MUST match auth-service exactly
+    SECRET_KEY: str = "mi-secreto-auth-service-super-seguro-2025"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    WEBSOCKET_SERVICE_URL: str = os.getenv("WEBSOCKET_SERVICE_URL", "http://localhost:3001")
+    
+    # WebSocket service
+    WEBSOCKET_SERVICE_URL: str = "http://localhost:3001"
     
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 settings = Settings()
