@@ -1,7 +1,14 @@
 import { isRestConfigured, restClient } from './client';
 
 export type Credentials = { email: string; password: string };
-export type RegisterInput = Credentials & { nombre: string; apellido?: string; telefono?: string; tipo_usuario_id?: number };
+// Prefer camelCase (tipoUsuarioId) to match DTO; keep snake for backward compatibility and map it.
+export type RegisterInput = Credentials & {
+  nombre: string;
+  apellido?: string;
+  telefono?: string;
+  tipoUsuarioId?: number;
+  tipo_usuario_id?: number;
+};
 
 export type UserProfile = {
   id: string;
@@ -17,7 +24,7 @@ export type UserProfile = {
 
 export type AuthResponse = { token: string; user: UserProfile };
 
-// El auth-service retorna campos en camelCase: accessToken, refreshToken, expiresIn
+// El auth-service puede devolver snake_case o camelCase según la versión; aceptamos ambos.
 type BackendAuthResponse = {
   accessToken: string;
   refreshToken?: string;
@@ -29,24 +36,34 @@ type BackendAuthResponse = {
     nombre: string;
     apellido?: string;
     telefono?: string;
-    tipo_usuario_id: number;
+    // soportar ambas variantes
+    tipo_usuario_id?: number;
+    tipoUsuarioId?: number;
     tipo_usuario?: { id: number; nombre: string };
+    tipoUsuario?: { id: number; nombre: string };
     estado?: string;
     avatar_url?: string;
+    avatarUrl?: string;
   };
 };
 
 function mapBackendUser(input: BackendAuthResponse['user']): UserProfile {
+  // tolerar snake_case y camelCase provenientes del backend
+  const tipoUsuarioId = input.tipo_usuario_id ?? input.tipoUsuarioId ?? input.tipo_usuario?.id ?? input.tipoUsuario?.id;
+  const tipoUsuarioNombre = input.tipo_usuario?.nombre ?? input.tipoUsuario?.nombre;
+  const avatar = input.avatar_url ?? input.avatarUrl;
+  const role = tipoUsuarioId === 1 ? 'admin' : 'user';
+
   return {
     id: String(input.id),
     nombre: input.nombre,
     apellido: input.apellido,
     email: input.email,
-    role: input.tipo_usuario_id === 1 ? 'admin' : 'user',
+    role,
     estado: input.estado,
-    avatar: input.avatar_url,
-    tipoUsuarioId: input.tipo_usuario_id,
-    tipoUsuarioNombre: input.tipo_usuario?.nombre,
+    avatar,
+    tipoUsuarioId,
+    tipoUsuarioNombre,
   };
 }
 
@@ -63,7 +80,11 @@ export const authApi = {
     if (!isRestConfigured()) {
       throw new Error('Configura VITE_REST_BASE_URL para usar el backend REST');
     }
-    const res = await restClient.post<BackendAuthResponse>('/auth/register', input);
+    const payload: any = { ...input };
+    // Normalizar a camelCase para el auth-service (RegisterDto espera tipoUsuarioId)
+    payload.tipoUsuarioId = input.tipoUsuarioId ?? input.tipo_usuario_id;
+    delete payload.tipo_usuario_id;
+    const res = await restClient.post<BackendAuthResponse>('/auth/register', payload);
     return { token: (res as any).accessToken ?? (res as any).access_token ?? '', user: mapBackendUser(res.user) };
   },
   async me(): Promise<UserProfile> {

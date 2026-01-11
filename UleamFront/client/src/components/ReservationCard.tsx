@@ -38,10 +38,11 @@ export function ReservationCard({
   showActions = true,
   className,
 }: ReservationCardProps) {
-  // Normalizar estado entrante (puede venir como "Aprobada" desde backend GraphQL/REST)
+  // Normalizar estado entrante (puede venir como "Aprobada" o "Pagada" desde backend GraphQL/REST)
   const normalizedEstado: ReservaEstado = (() => {
     if (!estado) return 'pendiente';
     const lower = estado.toLowerCase();
+    if (lower === 'pagada') return 'pagada';
     if (lower === 'en curso') return 'enCurso';
     return lower as ReservaEstado;
   })();

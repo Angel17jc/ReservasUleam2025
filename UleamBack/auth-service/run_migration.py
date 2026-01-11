@@ -6,7 +6,7 @@ conn = psycopg2.connect(
     host="localhost",
     port=5432,
     user="postgres",
-    password="123456",
+    password="123456789",
     database="reservasuleam"
 )
 conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)

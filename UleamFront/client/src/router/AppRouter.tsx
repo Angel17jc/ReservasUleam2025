@@ -16,6 +16,7 @@ const EspaciosListPage = lazy(() => import('@/pages/espacios/EspaciosListPage'))
 const ReservasListPage = lazy(() => import('@/pages/reservas/ReservasListPage'));
 const ReservaDetailPage = lazy(() => import('@/pages/reservas/ReservaDetailPage'));
 const NuevaReservaPage = lazy(() => import('@/pages/reservas/NuevaReservaPage'));
+const PaymentsPage = lazy(() => import('@/pages/payments/PaymentsPage'));
 const ReportesPage = lazy(() => import('@/pages/reportes/ReportesPage'));
 const PerfilUsuarioPage = lazy(() => import('@/pages/perfil/PerfilUsuarioPage'));
 const NotificacionesPage = lazy(() => import('@/pages/notificaciones/NotificacionesPage'));
@@ -115,6 +116,9 @@ export default function AppRouter() {
       <Route path="/app/espacios">
         <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><EspaciosListPage /></Suspense></UserLayout></PrivateUser>
       </Route>
+      <Route path="/app/pagos">
+        <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><PaymentsPage /></Suspense></UserLayout></PrivateUser>
+      </Route>
       <Route path="/app/reportes">
         <PrivateUser><UserLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><ReportesPage /></Suspense></UserLayout></PrivateUser>
       </Route>
@@ -163,6 +167,9 @@ export default function AppRouter() {
       </Route>
       <Route path="/admin/reportes">
         <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><AdminReportesPage /></Suspense></AdminLayout></PrivateAdmin>
+      </Route>
+      <Route path="/admin/pagos">
+        <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><PaymentsPage /></Suspense></AdminLayout></PrivateAdmin>
       </Route>
       <Route path="/admin/inicio">
         <PrivateAdmin><AdminLayout><Suspense fallback={<LoadingSpinner text="Cargando..." />}><DashboardPage /></Suspense></AdminLayout></PrivateAdmin>

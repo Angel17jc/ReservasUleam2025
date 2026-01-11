@@ -32,7 +32,7 @@ export default function AdminReportesPage() {
   });
   const { data: reservas } = useQuery({
     queryKey: ['reportes-reservas'],
-    queryFn: () => fetchReservas(),
+    queryFn: () => fetchReservas({ ver_todas: true }),
   });
   const { data: usuarios } = useQuery({
     queryKey: ['reportes-usuarios'],

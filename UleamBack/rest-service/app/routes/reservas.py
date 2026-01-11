@@ -152,9 +152,15 @@ def update_reserva_estado(reserva_id: int, data: ReservaEstadoUpdate, db: Sessio
     r = db.query(reserva_model.Reserva).filter(reserva_model.Reserva.id == reserva_id).first()
     if not r:
         raise HTTPException(status_code=404, detail='Reserva not found')
+    if not data.estado_id and not data.estado_nombre:
+        raise HTTPException(status_code=400, detail='Debe enviar estado_id o estado_nombre')
     if current_user.tipo_usuario.nivel_prioridad != 1 and current_user.id != r.usuario_id:
         raise HTTPException(status_code=403, detail='Permission denied')
-    estado = db.query(models.estado_reserva.EstadoReserva).filter(models.estado_reserva.EstadoReserva.id == data.estado_id).first()
+    estado = None
+    if data.estado_id:
+        estado = db.query(models.estado_reserva.EstadoReserva).filter(models.estado_reserva.EstadoReserva.id == data.estado_id).first()
+    elif data.estado_nombre:
+        estado = db.query(models.estado_reserva.EstadoReserva).filter(models.estado_reserva.EstadoReserva.nombre == data.estado_nombre).first()
     if not estado:
         raise HTTPException(status_code=404, detail='Estado not found')
 

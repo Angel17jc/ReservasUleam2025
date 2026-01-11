@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 // Tipos de estados posibles para una reserva
-export type ReservaEstado = 'pendiente' | 'aprobada' | 'rechazada' | 'completada' | 'cancelada' | 'enCurso';
+export type ReservaEstado = 'pendiente' | 'aprobada' | 'pagada' | 'rechazada' | 'completada' | 'cancelada' | 'enCurso';
 
 interface StatusBadgeProps {
   estado: ReservaEstado;
@@ -18,6 +18,10 @@ const estadoConfig: Record<ReservaEstado, { label: string; className: string }> 
   aprobada: {
     label: 'Aprobada',
     className: 'bg-reserva-aprobada/20 text-reserva-aprobada border-reserva-aprobada/30',
+  },
+  pagada: {
+    label: 'Pagada',
+    className: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   },
   rechazada: {
     label: 'Rechazada',

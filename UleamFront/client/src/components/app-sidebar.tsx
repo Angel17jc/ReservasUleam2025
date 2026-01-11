@@ -12,6 +12,7 @@ import {
   Target,
   CheckCircle,
   BarChart3,
+  CreditCard,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -35,6 +36,7 @@ const getUserMenuItems = (variant: 'user' | 'admin') => {
     { title: 'Explorar Espacios', url: `${prefix}/${variant === 'admin' ? 'explorar-espacios' : 'espacios'}`, icon: Building2 },
     { title: 'Mis Reservas', url: `${prefix}/${variant === 'admin' ? 'mis-reservas' : 'reservas'}`, icon: Calendar },
     { title: 'Nueva Reserva', url: `${prefix}/${variant === 'admin' ? 'nueva-reserva' : 'reservas/nueva'}`, icon: CalendarPlus },
+    { title: 'Pagos', url: `${prefix}/pagos`, icon: CreditCard },
     { title: 'Notificaciones', url: `${prefix}/notificaciones`, icon: Bell },
     { title: 'Mi Perfil', url: `${prefix}/perfil`, icon: User },
   ];

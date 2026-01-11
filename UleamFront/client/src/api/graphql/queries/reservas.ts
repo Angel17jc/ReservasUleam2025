@@ -15,6 +15,7 @@ export type ReservaNode = {
   esBloqueo?: boolean;
 };
 
+// Query para usuarios: no incluye ver_todas, así evitamos errores si el backend no está actualizado.
 const LIST_RESERVAS_QUERY = /* GraphQL */ `
   query Reservas(
     $usuario_id: Int
@@ -33,6 +34,44 @@ const LIST_RESERVAS_QUERY = /* GraphQL */ `
       fecha_hasta: $fecha_hasta
       limit: $limit
       offset: $offset
+    ) {
+      id
+      codigo
+      usuario_id
+      espacio_id
+      tipo_evento
+      estado
+      fecha
+      hora_inicio
+      hora_fin
+      titulo
+      descripcion
+      es_bloqueo
+    }
+  }
+`;
+
+// Query para admin: agrega ver_todas para traer todos los registros cuando el backend lo soporta.
+const LIST_RESERVAS_ADMIN_QUERY = /* GraphQL */ `
+  query ReservasAdmin(
+    $usuario_id: Int
+    $espacio_id: Int
+    $estado_id: Int
+    $fecha_desde: String
+    $fecha_hasta: String
+    $limit: Int
+    $offset: Int
+    $ver_todas: Boolean
+  ) {
+    reservas(
+      usuario_id: $usuario_id
+      espacio_id: $espacio_id
+      estado_id: $estado_id
+      fecha_desde: $fecha_desde
+      fecha_hasta: $fecha_hasta
+      limit: $limit
+      offset: $offset
+      ver_todas: $ver_todas
     ) {
       id
       codigo
@@ -91,12 +130,31 @@ function mapNode(r: any): ReservaNode {
   };
 }
 
-export async function fetchReservas(filters?: Partial<Record<string, string | number>>) {
+export async function fetchReservas(filters?: Partial<Record<string, string | number | boolean>>) {
   if (!isGraphqlConfigured()) {
     return [] as ReservaNode[];
   }
-  const res = await graphqlRequest<{ reservas: any[] }>(LIST_RESERVAS_QUERY, filters);
-  return (res.reservas ?? []).map(mapNode);
+  const useAdminQuery = Boolean(filters && (filters as any).ver_todas === true);
+  const query = useAdminQuery ? LIST_RESERVAS_ADMIN_QUERY : LIST_RESERVAS_QUERY;
+  const variables = { ...filters };
+  if (!useAdminQuery) {
+    // No enviar ver_todas en la query de usuario para evitar incompatibilidades
+    delete (variables as any).ver_todas;
+  }
+  try {
+    const res = await graphqlRequest<{ reservas: any[] }>(query, variables);
+    return (res.reservas ?? []).map(mapNode);
+  } catch (err: any) {
+    const message = String(err?.message ?? err);
+    const isVerTodasUnsupported = message.includes('Unknown argument "ver_todas"');
+    if (useAdminQuery && isVerTodasUnsupported) {
+      // Fallback si el backend aún no tiene el argumento; reintenta sin ver_todas
+      delete (variables as any).ver_todas;
+      const res = await graphqlRequest<{ reservas: any[] }>(LIST_RESERVAS_QUERY, variables);
+      return (res.reservas ?? []).map(mapNode);
+    }
+    throw err;
+  }
 }
 
 export async function fetchReservaById(id: string) {

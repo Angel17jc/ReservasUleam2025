@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
-import { authApi, Credentials, UserProfile } from '@/api/rest/authApi';
+import { authApi, Credentials, UserProfile, RegisterInput } from '@/api/rest/authApi';
 import { authStorage } from '@/lib/auth-storage';
 
 interface AuthContextType {
@@ -10,6 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
   roleLabel: string | null;
   login: (credentials: Credentials) => Promise<UserProfile>;
+  register: (input: RegisterInput) => Promise<UserProfile>;
   logout: () => Promise<void>;
   setUser: (user: UserProfile | null) => void;
 }
@@ -56,6 +57,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return authenticatedUser;
   };
 
+  const register = async (input: RegisterInput) => {
+    const { token: newToken, user: registeredUser } = await authApi.register(input);
+    authStorage.setToken(newToken);
+    authStorage.setUser(registeredUser);
+    setToken(newToken);
+    setUser(registeredUser);
+    return registeredUser;
+  };
+
   const logout = async () => {
     try {
       await authApi.logout();
@@ -85,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       roleLabel: roleLabelComputed,
       isLoading,
       login,
+      register,
       logout,
       setUser,
     };

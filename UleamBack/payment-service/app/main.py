@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
     # Initialize microservice clients
     try:
         init_auth_client(str(settings.AUTH_SERVICE_URL), timeout=10.0)
-        logger.info(f"✓ AuthClient initialized: {settings.AUTH_SERVICE_URL}")
+        logger.info(f"✓ AuthClient initialized (using AUTH service for JWT validation): {settings.AUTH_SERVICE_URL}")
         
         init_rest_client(str(settings.REST_SERVICE_URL), timeout=10.0)
         logger.info(f"✓ RestClient initialized: {settings.REST_SERVICE_URL}")

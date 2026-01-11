@@ -9,6 +9,13 @@ class Settings(BaseSettings):
     DB_USERNAME: str = "Reservas_ULEAM"
     DB_PASSWORD: str = "123456"
     DB_NAME: str = "reservasuleam"
+
+    # Auth database (independent, owned by auth-service)
+    AUTH_DB_HOST: str = "localhost"
+    AUTH_DB_PORT: int = 5432
+    AUTH_DB_USERNAME: str = "Reservas_ULEAM"
+    AUTH_DB_PASSWORD: str = "123456789"
+    AUTH_DB_NAME: str = "auth_service_db"
     
     # JWT configuration - MUST match auth-service exactly
     SECRET_KEY: str = "mi-secreto-auth-service-super-seguro-2025"
@@ -17,6 +24,9 @@ class Settings(BaseSettings):
     
     # WebSocket service
     WEBSOCKET_SERVICE_URL: str = "http://localhost:3001"
+
+    # Internal provisioning secret (Auth -> REST sync de usuarios)
+    INTERNAL_PROVISION_TOKEN: str = "change-me-provision-token"
     
     class Config:
         env_file = ".env"

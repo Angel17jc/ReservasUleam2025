@@ -6,9 +6,9 @@ import (
 )
 
 type Config struct {
-	DatabaseURL string
-	JWTSecret   string
-	Port        string
+	DatabaseURL  string
+	JWTSecret    string
+	Port         string
 	WebsocketURL string
 }
 
@@ -26,12 +26,12 @@ func Load() Config {
 	}
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8081"
 	}
 	return Config{
-		DatabaseURL: dbURL,
-		JWTSecret:   secret,
-		Port:        port,
+		DatabaseURL:  dbURL,
+		JWTSecret:    secret,
+		Port:         port,
 		WebsocketURL: os.Getenv("WEBSOCKET_SERVICE_URL"),
 	}
 }

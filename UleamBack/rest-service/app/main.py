@@ -11,6 +11,7 @@ import time
 from .database import get_db, engine, Base, SessionLocal
 from .models import tipo_usuario, usuario, categoria_espacio, espacio, caracteristica_espacio, tipo_evento, reserva as reserva_model, estado_reserva as estado_reserva_model
 from .routes import reservas as reservas_router, notificaciones as notificaciones_router
+from .routes import internal as internal_router
 from .utils.password_handler import verify_password, get_password_hash
 from .utils.jwt_handler import create_access_token
 from .utils.dependencies import get_current_user, require_admin
@@ -68,6 +69,7 @@ async def _strip_auth_header_for_auth_paths(request, call_next):
 # registrar routers modulares
 app.include_router(reservas_router.router)
 app.include_router(notificaciones_router.router)
+app.include_router(internal_router.router)
 
 
 # --- Small inline Pydantic schemas (for simple endpoints) ---
@@ -955,8 +957,9 @@ def startup():
         defaults = [
             {"nombre": "Pendiente", "color_hex": "#F59E0B", "permite_edicion": True, "es_final": False, "orden": 1},
             {"nombre": "Aprobada", "color_hex": "#10B981", "permite_edicion": False, "es_final": False, "orden": 2},
-            {"nombre": "Rechazada", "color_hex": "#EF4444", "permite_edicion": False, "es_final": True, "orden": 3},
-            {"nombre": "Cancelada", "color_hex": "#6B7280", "permite_edicion": False, "es_final": True, "orden": 4},
+            {"nombre": "Pagada", "color_hex": "#0EA5E9", "permite_edicion": False, "es_final": False, "orden": 3},
+            {"nombre": "Rechazada", "color_hex": "#EF4444", "permite_edicion": False, "es_final": True, "orden": 4},
+            {"nombre": "Cancelada", "color_hex": "#6B7280", "permite_edicion": False, "es_final": True, "orden": 5},
         ]
         for s in defaults:
             exists = db.query(estado_reserva_model.EstadoReserva).filter(estado_reserva_model.EstadoReserva.nombre == s["nombre"]).first()

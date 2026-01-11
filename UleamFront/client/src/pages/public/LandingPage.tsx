@@ -3,15 +3,18 @@ import { PublicHeader } from '@/components/layouts/PublicHeader';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2 } from 'lucide-react';
 import { LoginDialog } from '@/components/auth/LoginDialog';
+import { RegisterDialog } from '@/components/auth/RegisterDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 
 export default function LandingPage() {
   const [loginOpen, setLoginOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const { isAuthenticated, isAdmin } = useAuth();
   const [, navigate] = useLocation();
 
   const handleLogin = () => setLoginOpen(true);
+  const handleRegister = () => setRegisterOpen(true);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -57,12 +60,16 @@ export default function LandingPage() {
 
             <div className="flex flex-wrap gap-3">
               <Button onClick={handleLogin}>Iniciar sesión</Button>
+              <Button variant="outline" onClick={handleRegister}>
+                Crear cuenta
+              </Button>
             </div>
           </div>
         </div>
       </main>
 
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+      <RegisterDialog open={registerOpen} onOpenChange={setRegisterOpen} />
     </div>
   );
 }

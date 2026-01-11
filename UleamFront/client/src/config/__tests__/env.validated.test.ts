@@ -14,7 +14,7 @@ describe('env.validated', () => {
     vi.stubGlobal('import.meta', {
       env: {
         VITE_REST_BASE_URL: 'http://localhost:8000',
-        VITE_GRAPHQL_URL: 'http://localhost:8080/graphql',
+        VITE_GRAPHQL_URL: 'http://localhost:8081/graphql',
         VITE_WS_URL: 'http://localhost:3001',
         MODE: 'test',
         DEV: true,
@@ -38,7 +38,7 @@ describe('env.validated', () => {
     vi.stubGlobal('import.meta', {
       env: {
         VITE_REST_BASE_URL: 'http://localhost:8000',
-        VITE_GRAPHQL_URL: 'http://localhost:8080/graphql',
+        VITE_GRAPHQL_URL: 'http://localhost:8081/graphql',
         VITE_WS_URL: 'http://localhost:3001',
         MODE: 'test',
         DEV: true,
@@ -59,7 +59,7 @@ describe('env.validated', () => {
     vi.stubGlobal('import.meta', {
       env: {
         VITE_REST_BASE_URL: 'http://localhost:8000',
-        VITE_GRAPHQL_URL: 'http://localhost:8080/graphql',
+        VITE_GRAPHQL_URL: 'http://localhost:8081/graphql',
         VITE_WS_URL: 'http://localhost:3001',
         MODE: 'test',
         DEV: false,

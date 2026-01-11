@@ -147,6 +147,7 @@ func reservasField(deps Dependencies) *graphql.Field {
 			"tipo_evento_id": &graphql.ArgumentConfig{Type: graphql.Int},
 			"fecha_desde":    &graphql.ArgumentConfig{Type: graphql.String},
 			"fecha_hasta":    &graphql.ArgumentConfig{Type: graphql.String},
+			"ver_todas":      &graphql.ArgumentConfig{Type: graphql.Boolean, DefaultValue: false},
 		},
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 			authInfo := auth.FromContext(p.Context)
@@ -157,10 +158,14 @@ func reservasField(deps Dependencies) *graphql.Field {
 				Limit:  p.Args["limit"].(int),
 				Offset: p.Args["offset"].(int),
 			}
+			requestedAll := false
+			if v, ok := p.Args["ver_todas"]; ok {
+				requestedAll, _ = v.(bool)
+			}
 			if v, ok := p.Args["usuario_id"]; ok {
 				val := v.(int)
 				filter.UsuarioID = &val
-			} else if !authInfo.IsAdmin {
+			} else if !(authInfo.IsAdmin && requestedAll) {
 				filter.ForceUserID = &authInfo.UserID
 			}
 			if v, ok := p.Args["espacio_id"]; ok {

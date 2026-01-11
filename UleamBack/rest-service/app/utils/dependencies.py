@@ -1,8 +1,10 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload
-from ..database import get_db
+from ..database import get_db, get_auth_db
 from ..models.usuario import Usuario
+from ..models.tipo_usuario import TipoUsuario
 from .jwt_handler import decode_access_token
 import logging
 
@@ -13,7 +15,8 @@ security = HTTPBearer()
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    auth_db: Session = Depends(get_auth_db),
 ) -> Usuario:
     token = credentials.credentials
     payload = decode_access_token(token)
@@ -50,13 +53,55 @@ def get_current_user(
             detail="Invalid authentication credentials"
         )
 
-    user = db.query(Usuario).options(joinedload(Usuario.tipo_usuario)).filter(Usuario.id == user_id).first()
-    if user is None:
-        logger.warning("User referenced in token not found (user_id=%s)", user_id)
+    # Validate user exists and is active in auth_service_db (source of truth for auth)
+    auth_row = auth_db.execute(
+        text(
+            "SELECT id, email, nombre, apellido, tipo_usuario_id, estado "
+            "FROM usuario WHERE id = :id"
+        ),
+        {"id": user_id},
+    ).fetchone()
+
+    if auth_row is None:
+        logger.warning("User not found in auth_service_db (user_id=%s)", user_id)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="User not found in auth service"
         )
+
+    if str(auth_row.estado).lower() != "activo":
+        logger.warning("User is not active in auth_service_db (user_id=%s, estado=%s)", user_id, auth_row.estado)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User is not active"
+        )
+
+    # Validate user is provisioned in reservas DB (FK integrity) without auto-creating
+    user = db.query(Usuario).options(joinedload(Usuario.tipo_usuario)).filter(Usuario.id == user_id).first()
+    if user is None:
+        logger.warning("User referenced in token not provisioned in reservas DB (user_id=%s)", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not provisioned in reservas"
+        )
+
+    # Sync basic fields from auth row (without writes) so downstream logic can rely on them
+    user.email = auth_row.email
+    user.nombre = auth_row.nombre
+    user.apellido = auth_row.apellido
+    user.tipo_usuario_id = auth_row.tipo_usuario_id
+
+    # Ensure tipo_usuario relationship is present; if missing, fallback to lookup
+    if user.tipo_usuario is None:
+        tipo = db.query(TipoUsuario).filter(TipoUsuario.id == auth_row.tipo_usuario_id).first()
+        if tipo:
+            user.tipo_usuario = tipo
+        else:
+            logger.warning("tipo_usuario_id missing in reservas DB (id=%s)", auth_row.tipo_usuario_id)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User role not configured"
+            )
 
     return user
 

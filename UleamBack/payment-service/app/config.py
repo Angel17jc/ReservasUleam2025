@@ -65,6 +65,10 @@ class Settings(BaseSettings):
         default="http://localhost:8000",
         description="REST service base URL"
     )
+    RESERVAS_INTERNAL_TOKEN: Optional[str] = Field(
+        default=None,
+        description="Shared secret to call rest-service internal endpoints"
+    )
     WEBSOCKET_SERVICE_URL: HttpUrl = Field(
         default="http://localhost:3001",
         description="WebSocket service base URL"

@@ -48,4 +48,5 @@ class ReservaResponse(BaseModel):
     es_bloqueo: bool
 
 class ReservaEstadoUpdate(BaseModel):
-    estado_id: int
+    estado_id: Optional[int] = None
+    estado_nombre: Optional[str] = None

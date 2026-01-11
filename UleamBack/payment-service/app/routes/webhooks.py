@@ -16,6 +16,8 @@ from ..database import get_db
 from ..schemas.webhook import NormalizedWebhookEvent
 from ..schemas.payment import PaymentStatusUpdate
 from ..services.payment_service import PaymentService
+from ..models.payment import PaymentStatus
+from ..clients.rest_client import get_rest_client
 from ..services.partner_service import PartnerService
 from ..adapters.adapter_factory import AdapterFactory
 from ..config import settings
@@ -112,11 +114,10 @@ async def receive_provider_webhook(
                     detail="Webhook secret not configured"
                 )
             
-            # Validar firma usando el adapter
+            # Validar firma usando el adapter (el adapter gestiona su secret internamente)
             is_valid = adapter.validate_webhook_signature(
-                payload=payload_str,
-                signature=signature,
-                secret=webhook_secret
+                payload=payload_bytes,
+                signature=signature
             )
             
             if not is_valid:
@@ -171,6 +172,24 @@ async def receive_provider_webhook(
                 f"Payment status updated: id={updated_payment.id}, "
                 f"status={updated_payment.status}"
             )
+
+            if (
+                updated_payment.status == PaymentStatus.COMPLETED
+                and settings.RESERVAS_INTERNAL_TOKEN
+            ):
+                try:
+                    rest_client = get_rest_client()
+                    await rest_client.update_reserva_status_internal(
+                        reserva_id=updated_payment.reserva_id,
+                        estado_nombre="Pagada",
+                        internal_token=settings.RESERVAS_INTERNAL_TOKEN,
+                        payment_code=updated_payment.external_payment_id,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"No se pudo marcar la reserva como pagada via webhook: {e}",
+                        exc_info=True,
+                    )
         
         # 8. Registrar evento en BD
         PaymentService.record_webhook_event(

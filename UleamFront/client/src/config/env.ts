@@ -1,5 +1,6 @@
 export const env = {
   restBaseUrl: import.meta.env.VITE_REST_BASE_URL?.trim() ?? "",
+  paymentBaseUrl: import.meta.env.VITE_PAYMENT_BASE_URL?.trim() ?? "",
   graphqlUrl: import.meta.env.VITE_GRAPHQL_URL?.trim() ?? "",
   wsUrl: import.meta.env.VITE_WS_URL?.trim() ?? "",
 };

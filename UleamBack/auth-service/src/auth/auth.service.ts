@@ -15,6 +15,8 @@ import { RedisService } from '../redis/redis.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { TokenResponse, UserResponse } from './interfaces/auth.interface';
+import { request as httpsRequest } from 'node:https';
+import { request as httpRequest } from 'node:http';
 
 @Injectable()
 export class AuthService {
@@ -46,6 +48,11 @@ export class AuthService {
         password: registerDto.password,
         tipoUsuarioId: registerDto.tipoUsuarioId,
         telefono: registerDto.telefono,
+      });
+
+      // Provision best-effort en reservasuleam (no bloquea el registro si falla)
+      this.provisionInReservas(user).catch((err) => {
+        this.logger.warn(`Provisioning in reservas DB failed for user ${user.id}: ${err?.message ?? err}`);
       });
 
       // Generate tokens
@@ -187,6 +194,58 @@ export class AuthService {
       this.logger.error(`Error en login: ${error.message}`, error.stack);
       throw new UnauthorizedException('Error al iniciar sesión');
     }
+  }
+
+  private async provisionInReservas(user: UserResponse): Promise<void> {
+    const provisionUrl = (this.configService.get<string>('PROVISION_URL') || '').trim();
+    const provisionToken = (this.configService.get<string>('PROVISION_TOKEN') || '').trim();
+    if (!provisionUrl || !provisionToken) {
+      this.logger.warn('PROVISION_URL or PROVISION_TOKEN not configured; skip provisioning');
+      return;
+    }
+
+    const payload = JSON.stringify({
+      id: user.id,
+      email: user.email,
+      nombre: user.nombre,
+      apellido: user.apellido ?? '',
+      tipo_usuario_id: user.tipoUsuarioId ?? 3,
+      estado: user.estado ?? 'activo',
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const urlObj = new URL(provisionUrl);
+      const isHttps = urlObj.protocol === 'https:';
+      const client = isHttps ? httpsRequest : httpRequest;
+      const chunks: Buffer[] = [];
+      const req = client(
+        {
+          method: 'POST',
+          hostname: urlObj.hostname,
+          port: urlObj.port || (isHttps ? 443 : 80),
+          path: urlObj.pathname + (urlObj.search || ''),
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+            'X-Internal-Token': provisionToken,
+          },
+        },
+        (res) => {
+          res.on('data', (d) => chunks.push(Buffer.from(d)));
+          res.on('end', () => {
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              return resolve();
+            }
+            const body = Buffer.concat(chunks).toString('utf8');
+            return reject(new Error(`Provisioning failed with status ${res.statusCode}: ${body || 'no-body'}`));
+          });
+        },
+      );
+
+      req.on('error', reject);
+      req.write(payload);
+      req.end();
+    });
   }
 
   /**

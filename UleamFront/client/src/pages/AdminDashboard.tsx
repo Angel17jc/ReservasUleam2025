@@ -36,7 +36,7 @@ export default function AdminDashboard() {
 
   const { data: reservasTodas = [], isLoading: reservasLoading } = useQuery({
     queryKey: ['admin-reservas'],
-    queryFn: () => fetchReservas(),
+    queryFn: () => fetchReservas({ ver_todas: true }),
   });
 
   const hoy = new Date().toISOString().slice(0, 10);

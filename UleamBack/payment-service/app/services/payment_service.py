@@ -21,7 +21,8 @@ import logging
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
-from datetime import datetime
+from datetime import datetime, timedelta
+from decimal import Decimal
 
 from ..models.payment import Payment, PaymentStatus
 from ..models.webhook_event import WebhookEvent
@@ -89,7 +90,7 @@ class PaymentService:
             logger.info(
                 f"Creating payment: usuario_id={usuario_id}, "
                 f"reserva_id={payment_data.reserva_id}, "
-                f"provider={payment_data.provider}"
+                "provider=stripe"
             )
             
             rest_client = get_rest_client()
@@ -107,27 +108,62 @@ class PaymentService:
                 raise ValueError(
                     f"Reserva {payment_data.reserva_id} no encontrada o no pertenece al usuario"
                 )
-            
-            logger.info(f"Reserva validated: reserva_id={payment_data.reserva_id}")
-            
-            # 2. Obtener adapter del provider
-            adapter = AdapterFactory.get_adapter(payment_data.provider)
-            
+
+            estado_reserva = (reserva.get("estado_nombre") or reserva.get("estado") or "").lower()
+            if estado_reserva != "aprobada":
+                raise ValueError("La reserva debe estar aprobada antes de pagar")
+
+            # 1.b: evitar dobles pagos
+            existing_payment = (
+                db.query(Payment)
+                .filter(Payment.reserva_id == payment_data.reserva_id)
+                .order_by(desc(Payment.creado_en))
+                .first()
+            )
+
+            if existing_payment and existing_payment.status == PaymentStatus.COMPLETED:
+                raise ValueError(
+                    f"Reserva ya pagada (payment={existing_payment.external_payment_id})"
+                )
+
+            # Reutilizar intent pendiente si sigue vigente (<15h)
+            deadline = datetime.utcnow() + timedelta(hours=15)
+            if existing_payment and existing_payment.status == PaymentStatus.PENDING:
+                try:
+                    expires_at = existing_payment.metadata_json.get("payment_deadline")
+                    if expires_at:
+                        expires_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                        if datetime.utcnow() <= expires_dt:
+                            logger.info(
+                                "Reutilizando PaymentIntent pendiente existente "
+                                f"(payment_id={existing_payment.external_payment_id})"
+                            )
+                            return existing_payment
+                except Exception:
+                    logger.debug("No se pudo parsear payment_deadline existente; se generará uno nuevo")
+
+            # 2. Obtener adapter del provider (fijado a stripe)
+            provider = "stripe"
+            adapter = AdapterFactory.get_adapter(provider)
+
             # 3. Preparar metadata
+            description = payment_data.description or payment_data.metadata.get("descripcion") if payment_data.metadata else None
             metadata = payment_data.metadata or {}
             metadata.update({
+                "descripcion": description or "Pago de reserva ULEAM",
                 "reserva_id": payment_data.reserva_id,
                 "usuario_id": usuario_id,
-                "espacio_id": reserva.get("espacio_id"),
-                "precio_reserva": reserva.get("precio_total"),
+                "reserva_codigo": reserva.get("codigo"),
+                "espacio_id": reserva.get("espacio_id") or reserva.get("espacio", {}).get("id"),
                 "created_by_service": "payment-service",
-                "created_at": datetime.utcnow().isoformat()
+                "payment_deadline": deadline.isoformat() + "Z",
+                "created_at": datetime.utcnow().isoformat() + "Z"
             })
             
-            # 4. Crear pago en el provider externo
+            # 4. Crear pago en el provider externo (monto fijo 20 USD)
             provider_response = adapter.create_payment(
-                amount=float(payment_data.amount),
-                currency=payment_data.currency,
+                amount=float(Decimal("20.00")),
+                currency="USD",
                 metadata=metadata
             )
             
@@ -147,11 +183,15 @@ class PaymentService:
                 external_payment_id=provider_response["payment_id"],
                 reserva_id=payment_data.reserva_id,
                 usuario_id=usuario_id,
-                provider_name=payment_data.provider,
-                amount=payment_data.amount,
-                currency=payment_data.currency,
+                provider_name=provider,
+                amount=Decimal("20.00"),
+                currency="USD",
                 status=payment_status,  # Usa el status del provider
-                metadata_json=metadata
+                metadata_json={
+                    **metadata,
+                    "client_secret": provider_response.get("client_secret"),
+                    "provider_status": provider_status,
+                }
             )
             
             db.add(payment)
@@ -178,24 +218,25 @@ class PaymentService:
                     "provider_name": payment.provider_name
                 }
                 
-                if payment.is_completed():
+                if payment.is_completed:
                     await websocket_client.notify_payment_success(usuario_id, payment_dict)
                     
-                    # Actualizar estado de la reserva a "confirmada"
+                    # Actualizar estado de la reserva a "Pagada" (vía usuario JWT)
                     await rest_client.update_reserva_status(
                         reserva_id=payment_data.reserva_id,
-                        estado="confirmada",
+                        estado="pagada",
+                        estado_nombre="Pagada",
                         token=token
                     )
                     
-                    # Notificar que la reserva fue confirmada
+                    # Notificar que la reserva fue confirmada/pagada
                     await websocket_client.notify_reserva_confirmed(
                         usuario_id=usuario_id,
                         reserva_id=payment_data.reserva_id,
                         payment_id=payment.id
                     )
                     
-                    logger.info(f"Reserva confirmed and user notified: reserva_id={payment_data.reserva_id}")
+                    logger.info(f"Reserva pagada y notificada: reserva_id={payment_data.reserva_id}")
                 
                 elif payment.status == PaymentStatus.FAILED:
                     await websocket_client.notify_payment_failed(usuario_id, payment_dict)
@@ -400,6 +441,12 @@ class PaymentService:
             
             if status_update.error_message:
                 payment.error_message = status_update.error_message
+
+            # Marcar metadata de pago exitoso
+            if payment.status == PaymentStatus.COMPLETED:
+                meta = payment.metadata_json or {}
+                meta["paid_at"] = datetime.utcnow().isoformat() + "Z"
+                payment.metadata_json = meta
             
             db.commit()
             db.refresh(payment)

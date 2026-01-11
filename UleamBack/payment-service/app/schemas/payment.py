@@ -14,11 +14,12 @@ class PaymentCreate(BaseModel):
     """
     Schema para crear un nuevo pago.
     
-    Validaciones aplicadas:
-    - amount > 0
-    - currency en lista permitida
-    - provider soportado
-    - reserva_id obligatorio
+    Simplificado para reservas aprobadas con monto fijo:
+    - amount: fijo 20.00 (USD)
+    - currency: USD
+    - provider: stripe
+    - reserva_id: obligatorio
+    - description: opcional (se guarda en metadata)
     """
     
     reserva_id: int = Field(
@@ -27,8 +28,8 @@ class PaymentCreate(BaseModel):
         gt=0
     )
     amount: Decimal = Field(
-        ...,
-        description="Monto del pago",
+        default=Decimal("20.00"),
+        description="Monto fijo de la reserva (USD 20.00 / 2h)",
         gt=0,
         decimal_places=2
     )
@@ -39,9 +40,13 @@ class PaymentCreate(BaseModel):
         pattern="^[A-Z]{3}$"
     )
     provider: str = Field(
-        ...,
+        default="stripe",
         description="Proveedor de pago a utilizar",
-        pattern="^(mock|stripe|mercadopago)$"
+        pattern="^stripe$"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Descripción opcional que verá el usuario en el pago"
     )
     metadata: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
@@ -58,7 +63,7 @@ class PaymentCreate(BaseModel):
     @classmethod
     def validate_currency(cls, v: str) -> str:
         """Validar que la moneda esté soportada"""
-        allowed_currencies = {"USD", "EUR", "MXN", "COP", "PEN", "ARS", "CLP"}
+        allowed_currencies = {"USD"}
         if v not in allowed_currencies:
             raise ValueError(f"Currency must be one of {allowed_currencies}")
         return v
@@ -72,10 +77,10 @@ class PaymentCreate(BaseModel):
     @field_validator("provider")
     @classmethod
     def validate_provider(cls, v: str) -> str:
-        """Validar que el provider esté soportado"""
-        allowed_providers = {"mock", "stripe", "mercadopago"}
+        """Validar que el provider sea stripe (o mock/mercadopago si se habilitan)"""
+        allowed_providers = {"stripe"}
         if v not in allowed_providers:
-            raise ValueError(f"Provider must be one of {allowed_providers}")
+            raise ValueError("Solo se soporta stripe en este flujo")
         return v
     
     model_config = ConfigDict(
@@ -83,13 +88,10 @@ class PaymentCreate(BaseModel):
             "examples": [
                 {
                     "reserva_id": 123,
-                    "amount": 50.00,
+                    "description": "Pago de reserva aprobada",
+                    "amount": 20.00,
                     "currency": "USD",
-                    "provider": "mock",
-                    "metadata": {
-                        "descripcion": "Reserva de Sala A",
-                        "duracion_horas": 2
-                    }
+                    "provider": "stripe"
                 }
             ]
         }

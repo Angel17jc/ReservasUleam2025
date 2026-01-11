@@ -104,33 +104,46 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             logger.debug(f"Public path accessed: {path}")
             return await call_next(request)
         
-        # Extraer token del header Authorization
+        # Extraer token del header Authorization o cookies de sesión
         auth_header = request.headers.get("Authorization")
-        
+        cookie_token = None
+        query_token = None
         if not auth_header:
-            logger.warning(f"Missing Authorization header: path={path}")
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    "detail": "Missing Authorization header",
-                    "error": "authentication_required"
-                }
+            # tolerar flujos donde el token viene en cookie (p.ej. front que guarda en sessionStorage/cookie)
+            cookie_token = (
+                request.cookies.get("uleam_token")
+                or request.cookies.get("access_token")
+                or request.cookies.get("token")
             )
+            # y también permitir query param ?token=... para debug/front con proxies
+            query_token = request.query_params.get("token") if not cookie_token else None
+            if not cookie_token and not query_token:
+                logger.warning(f"Missing Authorization header and cookie/query token: path={path}")
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={
+                        "detail": "Missing Authorization header",
+                        "error": "authentication_required"
+                    }
+                )
         
         # Verificar formato "Bearer <token>"
-        parts = auth_header.split()
-        
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            logger.warning(f"Invalid Authorization header format: path={path}")
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    "detail": "Invalid Authorization header format. Expected 'Bearer <token>'",
-                    "error": "invalid_token_format"
-                }
-            )
-        
-        token = parts[1]
+        token = None
+        if auth_header:
+            parts = auth_header.split()
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                token = parts[1]
+            else:
+                logger.warning(f"Invalid Authorization header format: path={path}")
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={
+                        "detail": "Invalid Authorization header format. Expected 'Bearer <token>'",
+                        "error": "invalid_token_format"
+                    }
+                )
+        else:
+            token = cookie_token or query_token
         
         # Validar token con auth-service
         try:
@@ -138,7 +151,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             user_data = await auth_client.validate_token(token)
             
             if not user_data:
-                logger.warning(f"Invalid or expired token: path={path}")
+                logger.warning(f"Invalid or expired token: path={path}, token_prefix={token[:12]}...")
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     content={

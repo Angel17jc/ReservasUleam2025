@@ -24,9 +24,9 @@ const estadoLabel = (estado?: string | number | null) => {
       case 2:
         return 'Aprobada';
       case 3:
-        return 'Rechazada';
+        return 'Pagada';
       case 4:
-        return 'Completada';
+        return 'Rechazada';
       case 5:
         return 'Cancelada';
       default:

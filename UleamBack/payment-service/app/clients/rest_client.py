@@ -70,7 +70,7 @@ class RestClient:
         """
         try:
             headers = {"Authorization": f"Bearer {token}"}
-            url = f"{self.base_url}/api/v1/reservas/{reserva_id}"
+            url = f"{self.base_url}/api/reservas/{reserva_id}"
             
             logger.debug(f"Validating reserva: reserva_id={reserva_id}, usuario_id={usuario_id}")
             
@@ -78,9 +78,11 @@ class RestClient:
             
             if response.status_code == 200:
                 reserva_data = response.json()
-                
-                # Verificar ownership
+
+                # Verificar ownership (permite schema viejo y nuevo)
                 reserva_usuario_id = reserva_data.get("usuario_id")
+                if reserva_usuario_id is None and isinstance(reserva_data.get("usuario"), dict):
+                    reserva_usuario_id = reserva_data.get("usuario", {}).get("id")
                 
                 if reserva_usuario_id != usuario_id:
                     logger.warning(
@@ -89,6 +91,12 @@ class RestClient:
                     )
                     return None
                 
+                # Normalizar estado: puede venir como string o anidado
+                estado_nombre = reserva_data.get("estado")
+                if isinstance(reserva_data.get("estado"), dict):
+                    estado_nombre = reserva_data["estado"].get("nombre")
+                reserva_data["estado_nombre"] = estado_nombre
+
                 logger.info(
                     f"Reserva validated successfully: reserva_id={reserva_id}, "
                     f"usuario_id={usuario_id}"
@@ -140,7 +148,7 @@ class RestClient:
         """
         try:
             headers = {"Authorization": f"Bearer {token}"}
-            url = f"{self.base_url}/api/v1/reservas/{reserva_id}"
+            url = f"{self.base_url}/api/reservas/{reserva_id}"
             
             logger.debug(f"Getting reserva info: reserva_id={reserva_id}")
             
@@ -169,8 +177,9 @@ class RestClient:
     async def update_reserva_status(
         self,
         reserva_id: int,
-        estado: str,
-        token: str
+        estado: str | None,
+        token: str,
+        estado_nombre: str | None = None
     ) -> bool:
         """
         Actualizar el estado de una reserva (llamado después de pago exitoso).
@@ -189,7 +198,9 @@ class RestClient:
                 "Content-Type": "application/json"
             }
             url = f"{self.base_url}/api/reservas/{reserva_id}/estado"
-            payload = {"estado": estado}
+            payload = {"estado": estado} if estado is not None else {}
+            if estado_nombre:
+                payload = {"estado_nombre": estado_nombre}
             
             logger.debug(f"Updating reserva status: reserva_id={reserva_id}, estado={estado}")
             
@@ -208,6 +219,39 @@ class RestClient:
         
         except Exception as e:
             logger.error(f"Error updating reserva status: {str(e)}", exc_info=True)
+            return False
+
+    async def update_reserva_status_internal(
+        self,
+        reserva_id: int,
+        estado_nombre: str,
+        internal_token: str,
+        payment_code: str | None = None,
+    ) -> bool:
+        """
+        Actualiza estado de reserva usando el endpoint interno protegido por token compartido.
+        """
+        try:
+            headers = {"X-Internal-Token": internal_token, "Content-Type": "application/json"}
+            payload = {"estado_nombre": estado_nombre}
+            if payment_code:
+                payload["payment_code"] = payment_code
+
+            url = f"{self.base_url}/api/internal/reservas/{reserva_id}/estado"
+            response = await self.client.post(url, headers=headers, json=payload)
+
+            if response.status_code in (200, 201):
+                logger.info(
+                    f"Reserva estado actualizado via interno: reserva_id={reserva_id}, estado={estado_nombre}"
+                )
+                return True
+
+            logger.error(
+                f"Failed internal reserva status update: status={response.status_code}, body={response.text[:200]}"
+            )
+            return False
+        except Exception as e:
+            logger.error(f"Error updating reserva status (internal): {str(e)}", exc_info=True)
             return False
     
     async def health_check(self) -> bool:

@@ -38,7 +38,17 @@ function normalizeUser(value: any): StoredUser | null {
 export const authStorage = {
   getToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(TOKEN_KEY);
+    const local = localStorage.getItem(TOKEN_KEY) || localStorage.getItem('token') || localStorage.getItem('access_token');
+    if (local) return local;
+    // Fallback a sessionStorage o cookie si el flujo de login los usa
+    const session = typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem(TOKEN_KEY) || sessionStorage.getItem('token') || sessionStorage.getItem('access_token')
+      : null;
+    if (session) return session;
+    const cookieMatch = document.cookie.match(new RegExp(`${TOKEN_KEY}=([^;]+)`)) ||
+      document.cookie.match(new RegExp(`token=([^;]+)`)) ||
+      document.cookie.match(new RegExp(`access_token=([^;]+)`));
+    return cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
   },
   setToken(token: string) {
     if (typeof window === 'undefined') return;

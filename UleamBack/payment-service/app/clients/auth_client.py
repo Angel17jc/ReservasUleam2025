@@ -25,10 +25,10 @@ class AuthClient:
     
     def __init__(self, base_url: str, timeout: float = 10.0):
         """
-        Inicializar cliente de autenticación.
+        Inicializar cliente de autenticación (auth-service /api/v1/auth/validate).
         
         Args:
-            base_url: URL base del auth-service (ej: http://localhost:3000)
+            base_url: URL base del auth-service (ej: http://localhost:9000)
             timeout: Timeout para requests HTTP en segundos
         """
         self.base_url = base_url.rstrip("/")
@@ -43,60 +43,46 @@ class AuthClient:
     
     async def validate_token(self, token: str) -> Optional[Dict[str, Any]]:
         """
-        Validar un token JWT con el auth-service.
-        
-        Args:
-            token: JWT token (sin "Bearer " prefix)
-        
-        Returns:
-            Dict con información del usuario si el token es válido, None si no lo es
-            
-        Example response:
-            {
-                "id": 123,
-                "email": "usuario@example.com",
-                "rol": "usuario",
-                "nombre": "Juan Pérez",
-                "is_active": true
-            }
+        Validar un token JWT contra auth-service (/api/v1/auth/validate).
+        Compatible con tokens emitidos por auth-service y rest-service (mismo JWT_SECRET).
         """
         try:
-            headers = {"Authorization": f"Bearer {token}"}
-            
-            # Endpoint del auth-service para validar token
             url = f"{self.base_url}/api/v1/auth/validate"
-            
-            logger.debug(f"Validating token with auth-service: {url}")
-            
-            response = await self.client.get(url, headers=headers)
-            
-            if response.status_code == 200:
-                user_data = response.json()
-                logger.info(
-                    f"Token validated successfully: user_id={user_data.get('id')}, "
-                    f"email={user_data.get('email')}"
-                )
-                return user_data
-            
-            elif response.status_code == 401:
-                logger.warning(f"Invalid token: {response.text[:100]}")
-                return None
-            
-            else:
-                logger.error(
-                    f"Unexpected response from auth-service: "
-                    f"status={response.status_code}, body={response.text[:200]}"
+            response = await self.client.post(url, json={"token": token})
+
+            if response.status_code != 200:
+                logger.warning(
+                    f"Auth validation non-200: status={response.status_code}, body={response.text[:200]}, token_prefix={token[:12]}..."
                 )
                 return None
-        
+
+            payload = response.json()
+            if not payload.get("valid"):
+                logger.warning(
+                    f"Auth validation failed: error={payload.get('error')}, token_prefix={token[:12]}..."
+                )
+                return None
+
+            user = payload.get("user") or {}
+            if not user:
+                logger.warning(
+                    f"Auth validation missing user payload: body={response.text[:200]}, token_prefix={token[:12]}..."
+                )
+                return None
+
+            logger.info(
+                f"Token validated successfully: user_id={user.get('id')}, email={user.get('email')}"
+            )
+            return user
+
         except httpx.TimeoutException:
             logger.error(f"Timeout validating token with auth-service (timeout={self.timeout}s)")
             return None
-        
+
         except httpx.HTTPError as e:
             logger.error(f"HTTP error validating token: {str(e)}")
             return None
-        
+
         except Exception as e:
             logger.error(f"Unexpected error validating token: {str(e)}", exc_info=True)
             return None
