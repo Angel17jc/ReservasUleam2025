@@ -32,9 +32,11 @@ func (s *StatsService) Totals() (Stats, error) {
 	var stats Stats
 	s.db.QueryRow("SELECT COUNT(*) FROM reserva").Scan(&stats.TotalReservas)
 	s.db.QueryRow("SELECT COUNT(*) FROM reserva WHERE estado_id = 1").Scan(&stats.ReservasPendientes)
+	// Estados según init.sql:
+	// 1 Pendiente, 2 Aprobada, 3 Rechazada, 4 Completada, 5 Cancelada
 	s.db.QueryRow("SELECT COUNT(*) FROM reserva WHERE estado_id = 2").Scan(&stats.ReservasAprobadas)
 	s.db.QueryRow("SELECT COUNT(*) FROM reserva WHERE estado_id = 3").Scan(&stats.ReservasRechazadas)
-	s.db.QueryRow("SELECT COUNT(*) FROM reserva WHERE estado_id = 4").Scan(&stats.ReservasCanceladas)
+	s.db.QueryRow("SELECT COUNT(*) FROM reserva WHERE estado_id = 5").Scan(&stats.ReservasCanceladas)
 	s.db.QueryRow("SELECT COUNT(*) FROM espacio WHERE estado = 'activo'").Scan(&stats.EspaciosActivos)
 	s.db.QueryRow("SELECT COUNT(*) FROM usuario WHERE estado = 'activo'").Scan(&stats.UsuariosActivos)
 	return stats, nil
