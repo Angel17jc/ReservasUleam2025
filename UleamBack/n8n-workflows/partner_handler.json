@@ -1,0 +1,119 @@
+{
+  "name": "2. Partner Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "uuid_webhook_partner",
+      "name": "Webhook - Partner",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "partner-handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// Extraer firma del header\nconst signature = $input.headers['x-hub-signature'];\nif (!signature) {\n  throw new Error('Missing X-Hub-Signature header');\n}\n\n// Obtener secret del partner (en producción, hacer lookup a DB)\nconst secret = $env.PARTNER_SECRET || 'test_secret';\n\n// Verificar firma\nconst body = JSON.stringify($input.body);\nconst expectedSig = crypto\n  .createHmac('sha256', secret)\n  .update(body)\n  .digest('hex');\n\nconst receivedSig = signature.split(':')[1];\n\nif (expectedSig !== receivedSig) {\n  throw new Error('Invalid HMAC signature');\n}\n\nreturn { \n  valid: true,\n  event: $input.body.event,\n  source: $input.body.source,\n  payload: $input.body.payload,\n  trace_id: $input.body.trace_id\n};"
+      },
+      "id": "uuid_verify_hmac",
+      "name": "Verificar HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalizar evento según tipo\nconst event = $input.body.event;\nconst payload = $input.body.payload;\n\nlet action = {};\n\nswitch(event) {\n  case 'tour.purchased':\n    action = {\n      endpoint: '/api/orders',\n      method: 'POST',\n      data: {\n        booking_reference: payload.booking_reference,\n        service: 'tour',\n        provider: $input.body.source,\n        amount: payload.price\n      }\n    };\n    break;\n  \n  case 'service.activated':\n    action = {\n      endpoint: '/api/reservas/' + payload.booking_id + '/add-service',\n      method: 'POST',\n      data: {\n        service_id: payload.service_id,\n        activated_by: 'partner',\n        partner_name: $input.body.source\n      }\n    };\n    break;\n  \n  default:\n    throw new Error(`Unknown event type: ${event}`);\n}\n\nreturn { action, event, payload };"
+      },
+      "id": "uuid_normalize_event",
+      "name": "Normalizar Evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/orders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer test_token"
+            }
+          ]
+        },
+        "bodyParametersJson": "={}"
+      },
+      "id": "uuid_http_action",
+      "name": "HTTP: Ejecutar Acción",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Responder ACK al partner\nreturn {\n  ack: true,\n  trace_id: $input.body.trace_id,\n  event: $input.body.event,\n  status: 'processed',\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "uuid_ack_response",
+      "name": "ACK Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Partner": {
+      "main": [
+        [
+          {
+            "node": "Verificar HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar HMAC": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Evento": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Ejecutar Acción",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Ejecutar Acción": {
+      "main": [
+        [
+          {
+            "node": "ACK Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

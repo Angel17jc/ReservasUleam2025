@@ -1,0 +1,143 @@
+{
+  "name": "3. MCP Input Handler (Telegram/Email)",
+  "description": "Procesa mensajes desde Telegram o Email, extrae contenido, envía a AI Orchestrator y responde por el mismo canal",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "uuid_trigger_telegram",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "telegram-input"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraer contenido y adjuntos del mensaje Telegram\nconst message = $input.body.message;\n\nlet content = {\n  source: 'telegram',\n  chat_id: message.chat.id,\n  user_id: message.from.id,\n  text: message.text || '',\n  has_photo: !!message.photo,\n  has_document: !!message.document,\n  timestamp: new Date(message.date * 1000).toISOString(),\n  trace_id: 'tg-' + message.message_id\n};\n\n// Si tiene foto, extraer URL\nif (message.photo) {\n  const photo = message.photo[message.photo.length - 1];\n  content.image_file_id = photo.file_id;\n}\n\n// Si tiene documento (PDF, etc)\nif (message.document) {\n  content.document_file_id = message.document.file_id;\n  content.document_name = message.document.file_name;\n}\n\nreturn content;"
+      },
+      "id": "uuid_extract_content",
+      "name": "Extraer Contenido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar archivos adjuntos si existen\n// Nota: En producción, descargar archivos y procesar con OCR/servicios\n\nconst content = $input.body;\n\nif (content.image_file_id) {\n  // Placeholder: Enviar a servicio OCR\n  content.processing_hint = 'image_ocr_required';\n}\n\nif (content.document_file_id) {\n  // Placeholder: Enviar a servicio PDF extraction\n  content.processing_hint = 'pdf_extraction_required';\n}\n\nreturn content;"
+      },
+      "id": "uuid_process_attachments",
+      "name": "Procesar Adjuntos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8002/api/chat/process",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Request-ID",
+              "value": "{{ $json.trace_id }}"
+            }
+          ]
+        },
+        "bodyParametersJson": "{\n  \"text\": \"{{ $json.text }}\",\n  \"source\": \"{{ $json.source }}\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"attachments\": {\n    \"image_file_id\": \"{{ $json.image_file_id || null }}\",\n    \"document_file_id\": \"{{ $json.document_file_id || null }}\"\n  },\n  \"trace_id\": \"{{ $json.trace_id }}\"\n}"
+      },
+      "id": "uuid_http_ai",
+      "name": "HTTP: AI Orchestrator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Responder en el mismo canal (Telegram)\nconst response = $input.body.response;\nconst chat_id = $input.body.chat_id;\n\nreturn {\n  text: response || 'Procesando tu solicitud...',\n  chat_id: chat_id,\n  parse_mode: 'HTML'\n};"
+      },
+      "id": "uuid_format_response",
+      "name": "Formatear Respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "resourceLimitData": {
+          "maxAttachmentSize": 52428800
+        }
+      },
+      "id": "uuid_send_telegram",
+      "name": "Telegram Send",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extraer Contenido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Contenido": {
+      "main": [
+        [
+          {
+            "node": "Procesar Adjuntos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Adjuntos": {
+      "main": [
+        [
+          {
+            "node": "HTTP: AI Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: AI Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Telegram Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

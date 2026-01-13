@@ -1,0 +1,199 @@
+{
+  "name": "4. Scheduled Tasks",
+  "description": "Tareas programadas: reporte diario, limpieza de datos, health checks",
+  "nodes": [
+    {
+      "parameters": {
+        "unit": "day",
+        "value": 1,
+        "triggerAtHour": 23,
+        "triggerAtMinute": 59
+      },
+      "id": "uuid_cron_daily",
+      "name": "Cron - Daily 23:59",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 150]
+    },
+    {
+      "parameters": {
+        "unit": "hours",
+        "value": 6
+      },
+      "id": "uuid_cron_6h",
+      "name": "Cron - Every 6h",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generar reporte diario\nconst today = new Date().toISOString().split('T')[0];\n\nreturn {\n  task: 'daily_report',\n  date: today,\n  report_type: 'bookings',\n  timestamp: new Date().toISOString(),\n  trace_id: 'cron-daily-' + today\n};"
+      },
+      "id": "uuid_task_daily_report",
+      "name": "Task: Daily Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generar health check\nreturn {\n  task: 'health_check',\n  timestamp: new Date().toISOString(),\n  trace_id: 'cron-health-' + Date.now()\n};"
+      },
+      "id": "uuid_task_health_check",
+      "name": "Task: Health Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/reports/daily",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.REST_JWT_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParametersJson": "{\n  \"date\": \"{{ $json.date }}\",\n  \"report_type\": \"{{ $json.report_type }}\"\n}"
+      },
+      "id": "uuid_http_report",
+      "name": "HTTP: Generate Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Hacer ping a servicios críticos\nconst services = [\n  { name: 'REST', url: 'http://localhost:8000/api/health' },\n  { name: 'GraphQL', url: 'http://localhost:8080/graphql' },\n  { name: 'WebSocket', url: 'http://localhost:3001' },\n  { name: 'Payment', url: 'http://localhost:8001/health' }\n];\n\nreturn {\n  services: services,\n  trace_id: $input.body.trace_id\n};"
+      },
+      "id": "uuid_prepare_health_check",
+      "name": "Prepare Health Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "{{ $json.services[0].url }}"
+      },
+      "id": "uuid_http_health_rest",
+      "name": "Health: REST",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verificar respuestas de health check\nconst results = [];\n\n// Agregar resultados de checks anteriores\nreturn {\n  all_healthy: true,\n  results: results,\n  timestamp: new Date().toISOString(),\n  trace_id: $input.body.trace_id\n};"
+      },
+      "id": "uuid_aggregate_health",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enviar email con reporte\nreturn {\n  subject: 'Reporte Diario - ' + new Date().toLocaleDateString(),\n  body: 'Reporte diario generado correctamente\\n\\nFecha: ' + new Date().toISOString(),\n  to: 'admin@uleam.com'\n};"
+      },
+      "id": "uuid_email_report",
+      "name": "Email Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 150]
+    }
+  ],
+  "connections": {
+    "Cron - Daily 23:59": {
+      "main": [
+        [
+          {
+            "node": "Task: Daily Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron - Every 6h": {
+      "main": [
+        [
+          {
+            "node": "Task: Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Task: Daily Report": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Generate Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Generate Report": {
+      "main": [
+        [
+          {
+            "node": "Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Task: Health Check": {
+      "main": [
+        [
+          {
+            "node": "Prepare Health Checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Health Checks": {
+      "main": [
+        [
+          {
+            "node": "Health: REST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Health: REST": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

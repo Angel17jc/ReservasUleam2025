@@ -1,0 +1,130 @@
+{
+  "name": "1. Payment Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "uuid_webhook_1",
+      "name": "Webhook - Payment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "payment-handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar que el evento tiene estructura correcta\nconst required = ['event', 'source', 'timestamp', 'payload', 'trace_id'];\nfor (const field of required) {\n  if (!$input.body[field]) {\n    throw new Error(`Campo requerido: ${field}`);\n  }\n}\n\nreturn { \n  valid: true,\n  event: $input.body.event,\n  booking_id: $input.body.payload.booking_id,\n  amount: $input.body.payload.amount,\n  trace_id: $input.body.trace_id\n};"
+      },
+      "id": "uuid_validate_1",
+      "name": "Validar Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/reservas/{{ $json.booking_id }}/confirm",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.REST_JWT_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParametersJson": "{\n  \"payment_id\": \"{{ $json.payload.payment_id }}\",\n  \"status\": \"confirmed\",\n  \"amount\": \"{{ $json.payload.amount }}\"\n}"
+      },
+      "id": "uuid_http_confirm_1",
+      "name": "HTTP: Activar Reserva",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3001/api/webhooks/reserva-actualizada",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParametersJson": "{\n  \"booking_id\": \"{{ $json.booking_id }}\",\n  \"status\": \"confirmed\",\n  \"timestamp\": \"{{ $json.timestamp }}\",\n  \"user_id\": \"{{ $json.payload.customer_id }}\"\n}"
+      },
+      "id": "uuid_http_websocket_1",
+      "name": "HTTP: Notificar WebSocket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log para trazabilidad\nconst log = {\n  trace_id: $input.body.trace_id,\n  event: $input.body.event,\n  status: 'success',\n  timestamp: new Date().toISOString(),\n  duration_ms: Date.now() - new Date($input.body.timestamp).getTime()\n};\n\nreturn { log, success: true };"
+      },
+      "id": "uuid_log_1",
+      "name": "Log & Finish",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Payment": {
+      "main": [
+        [
+          {
+            "node": "Validar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Payload": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Activar Reserva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Activar Reserva": {
+      "main": [
+        [
+          {
+            "node": "HTTP: Notificar WebSocket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP: Notificar WebSocket": {
+      "main": [
+        [
+          {
+            "node": "Log & Finish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
