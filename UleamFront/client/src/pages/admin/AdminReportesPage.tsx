@@ -1,13 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  fetchEstadisticasGenerales,
-  fetchTopEspacios,
-  fetchReservasPorEstado,
-  fetchReservasPorTipoEvento,
-  fetchTopUsuarios,
-} from '@/api/graphql/queries/reportes';
+import { fetchEstadisticasGenerales } from '@/api/graphql/queries/reportes';
 import { fetchReservas } from '@/api/graphql/queries/reservas';
+import { isGraphqlConfigured } from '@/api/graphql/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MetricCard } from '@/components/MetricCard';
@@ -16,43 +11,92 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pi
 import { useWebSocketSubscription } from '@/hooks/useWebSocket';
 import { usuariosApi } from '@/api/rest/usuariosApi';
 import { espaciosApi } from '@/api/rest/espaciosApi';
+import { reservasApi } from '@/api/rest/reservasApi';
+import { tiposEventoApi } from '@/api/rest/tiposEventoApi';
 
 const COLORS = ['#E63946', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#6366F1'];
 
 export default function AdminReportesPage() {
   const queryClient = useQueryClient();
 
-  const { data: stats } = useQuery({
-    queryKey: ['reportes-estadisticas'],
-    queryFn: () => fetchEstadisticasGenerales(),
-  });
-  const { data: topEspacios = [] } = useQuery({
-    queryKey: ['reportes-top-espacios'],
-    queryFn: () => fetchTopEspacios(5),
-  });
   const { data: reservas } = useQuery({
     queryKey: ['reportes-reservas'],
-    queryFn: () => fetchReservas({ ver_todas: true }),
+    queryFn: async () => {
+      if (isGraphqlConfigured()) {
+        try {
+          return await fetchReservas({ ver_todas: true });
+        } catch (err) {
+          console.warn('GraphQL reservas falló, usando REST', err);
+        }
+      }
+      const res = await reservasApi.list();
+      return res.items ?? [];
+    },
   });
+
   const { data: usuarios } = useQuery({
     queryKey: ['reportes-usuarios'],
     queryFn: () => usuariosApi.list(),
   });
+
   const { data: espacios } = useQuery({
     queryKey: ['reportes-espacios'],
     queryFn: () => espaciosApi.list(),
   });
-  const { data: reservasEstado = [] } = useQuery({
-    queryKey: ['reportes-reservas-estado'],
-    queryFn: () => fetchReservasPorEstado(),
+
+  const { data: tiposEvento } = useQuery({
+    queryKey: ['reportes-tipos-evento'],
+    queryFn: () => tiposEventoApi.list(),
   });
-  const { data: reservasTipoEvento = [] } = useQuery({
-    queryKey: ['reportes-reservas-tipo-evento'],
-    queryFn: () => fetchReservasPorTipoEvento(),
-  });
-  const { data: topUsuarios = [] } = useQuery({
-    queryKey: ['reportes-top-usuarios'],
-    queryFn: () => fetchTopUsuarios(5),
+
+  const { data: stats } = useQuery({
+    queryKey: ['reportes-estadisticas'],
+    queryFn: async () => {
+      const buildFromRest = async () => {
+        const reservasList = reservas ?? (await reservasApi.list()).items ?? [];
+        const espaciosList = espacios?.items ?? (await espaciosApi.list()).items ?? [];
+        const usuariosList = usuarios?.items ?? (await usuariosApi.list()).items ?? [];
+
+        const normalizaEstado = (estado?: string) => (estado ?? '').toLowerCase();
+        const totalReservas = reservasList.length;
+        const reservasPendientes = reservasList.filter((r) => normalizaEstado(r.estado) === 'pendiente').length;
+        const reservasAprobadas = reservasList.filter((r) => {
+          const estado = normalizaEstado(r.estado);
+          return estado === 'aprobada' || estado === 'pagada' || estado === 'completada';
+        }).length;
+        const reservasRechazadas = reservasList.filter((r) => normalizaEstado(r.estado) === 'rechazada').length;
+        const reservasCanceladas = reservasList.filter((r) => normalizaEstado(r.estado) === 'cancelada').length;
+        const espaciosActivos = espaciosList.filter((e) => (e.estado ?? '').toLowerCase() === 'activo').length;
+        const usuariosActivos = usuariosList.length;
+
+        return {
+          totalReservas,
+          reservasPendientes,
+          reservasAprobadas,
+          reservasRechazadas,
+          reservasCanceladas,
+          espaciosActivos,
+          usuariosActivos,
+        };
+      };
+
+      if (isGraphqlConfigured()) {
+        try {
+          const g = await fetchEstadisticasGenerales();
+          const looksEmpty =
+            g.totalReservas === 0 &&
+            g.reservasPendientes === 0 &&
+            g.reservasAprobadas === 0 &&
+            g.reservasRechazadas === 0 &&
+            g.reservasCanceladas === 0;
+          if (!looksEmpty) return g;
+          return await buildFromRest();
+        } catch (err) {
+          console.warn('GraphQL estadísticas falló, usando REST', err);
+        }
+      }
+      return await buildFromRest();
+    },
   });
 
   // Agrupar reservas por día (últimos 14 días)
@@ -70,11 +114,14 @@ export default function AdminReportesPage() {
     return days;
   }, [reservas]);
 
-  // Derivar stats si GraphQL stats viene vacío (p.ej. por permisos)
+  // Derivar stats y datasets desde REST si GraphQL vino vacío
   const derivedStats = useMemo(() => {
     const totalReservas = reservas?.length ?? 0;
     const pend = reservas?.filter((r) => (r.estado ?? '').toLowerCase() === 'pendiente').length ?? 0;
-    const apro = reservas?.filter((r) => (r.estado ?? '').toLowerCase() === 'aprobada').length ?? 0;
+    const apro = reservas?.filter((r) => {
+      const e = (r.estado ?? '').toLowerCase();
+      return e === 'aprobada' || e === 'pagada' || e === 'completada';
+    }).length ?? 0;
     const rech = reservas?.filter((r) => (r.estado ?? '').toLowerCase() === 'rechazada').length ?? 0;
     const canc = reservas?.filter((r) => (r.estado ?? '').toLowerCase() === 'cancelada').length ?? 0;
     const espAct = (espacios?.items ?? []).filter((e) => (e.estado ?? '').toLowerCase() === 'activo').length;
@@ -89,6 +136,57 @@ export default function AdminReportesPage() {
       usuariosActivos: usuAct,
     };
   }, [reservas, espacios, usuarios]);
+
+  const topEspacios = useMemo(() => {
+    const counts = new Map<number, number>();
+    (reservas ?? []).forEach((r) => {
+      const id = Number(r.espacioId);
+      if (!Number.isNaN(id)) counts.set(id, (counts.get(id) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([id, cantidad]) => ({
+        label: espacios?.items?.find((e) => Number(e.id) === id)?.nombre ?? `Espacio #${id}`,
+        cantidad,
+      }))
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 5);
+  }, [reservas, espacios]);
+
+  const reservasEstado = useMemo(() => {
+    const groups = new Map<string, number>();
+    (reservas ?? []).forEach((r) => {
+      const key = (r.estado ?? 'Pendiente').toString();
+      groups.set(key, (groups.get(key) ?? 0) + 1);
+    });
+    return Array.from(groups.entries()).map(([label, cantidad]) => ({ label, cantidad }));
+  }, [reservas]);
+
+  const reservasTipoEvento = useMemo(() => {
+    const mapTipos = new Map<number, string>();
+    (tiposEvento ?? []).forEach((t) => mapTipos.set(Number(t.id), t.nombre));
+    const groups = new Map<string, number>();
+    (reservas ?? []).forEach((r) => {
+      const id = Number((r as any).tipo_evento_id ?? r.tipoEvento ?? NaN);
+      if (Number.isNaN(id)) return;
+      const label = mapTipos.get(id) ?? `Tipo #${id}`;
+      groups.set(label, (groups.get(label) ?? 0) + 1);
+    });
+    return Array.from(groups.entries()).map(([label, cantidad]) => ({ label, cantidad }));
+  }, [reservas, tiposEvento]);
+
+  const topUsuarios = useMemo(() => {
+    const usersMap = new Map<number, string>();
+    (usuarios?.items ?? []).forEach((u) => usersMap.set(Number(u.id), u.nombre ?? u.email ?? `Usuario #${u.id}`));
+    const counts = new Map<number, number>();
+    (reservas ?? []).forEach((r) => {
+      const id = Number(r.usuarioId);
+      if (!Number.isNaN(id)) counts.set(id, (counts.get(id) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([id, cantidad]) => ({ label: usersMap.get(id) ?? `Usuario #${id}`, cantidad }))
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 5);
+  }, [reservas, usuarios]);
 
   const invalidateReportes = () =>
     queryClient.invalidateQueries({
@@ -105,7 +203,6 @@ export default function AdminReportesPage() {
   const pickStat = (statValue?: number | null, derivedValue?: number | null) => {
     const derived = derivedValue ?? 0;
     if (statValue === undefined || statValue === null) return derived;
-    // Si GraphQL devuelve 0 pero tenemos datos derivados, priorizar los derivados
     if (statValue === 0 && derived > 0) return derived;
     return statValue;
   };

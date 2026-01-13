@@ -5,24 +5,15 @@ import { ReservationCard } from '@/components/ReservationCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Calendar, Building2, CheckCircle, TrendingUp } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { fetchEstadisticasGenerales, fetchTopEspacios } from '@/api/graphql/queries/reportes';
 import { fetchReservas } from '@/api/graphql/queries/reservas';
+import { isGraphqlConfigured } from '@/api/graphql/client';
 import { useWebSocketSubscription } from '@/hooks/useWebSocket';
 import { usuariosApi } from '@/api/rest/usuariosApi';
 import { espaciosApi } from '@/api/rest/espaciosApi';
+import { reservasApi } from '@/api/rest/reservasApi';
 
 export default function AdminDashboard() {
   const queryClient = useQueryClient();
-
-  const { data: stats } = useQuery({
-    queryKey: ['admin-estadisticas'],
-    queryFn: () => fetchEstadisticasGenerales(),
-  });
-
-  const { data: topEspacios = [] } = useQuery({
-    queryKey: ['admin-top-espacios'],
-    queryFn: () => fetchTopEspacios(5),
-  });
 
   const { data: usuarios, isLoading: usuariosLoading, error: usuariosError } = useQuery({
     queryKey: ['admin-usuarios'],
@@ -36,8 +27,28 @@ export default function AdminDashboard() {
 
   const { data: reservasTodas = [], isLoading: reservasLoading } = useQuery({
     queryKey: ['admin-reservas'],
-    queryFn: () => fetchReservas({ ver_todas: true }),
+    queryFn: async () => {
+      if (isGraphqlConfigured()) {
+        try {
+          return await fetchReservas({ ver_todas: true });
+        } catch (error) {
+          console.warn('GraphQL reservas falló, usando REST como respaldo', error);
+        }
+      }
+      const res = await reservasApi.list();
+      return res.items ?? [];
+    },
   });
+
+  const usuariosLookup = useMemo(() => {
+    if (!usuarios?.items) return new Map<number, any>();
+    return new Map(usuarios.items.map((u) => [Number(u.id), u]));
+  }, [usuarios]);
+
+  const espaciosLookup = useMemo(() => {
+    if (!espacios?.items) return new Map<number, any>();
+    return new Map(espacios.items.map((e) => [Number(e.id), e]));
+  }, [espacios]);
 
   const hoy = new Date().toISOString().slice(0, 10);
   const reservasHoy = useMemo(
@@ -81,13 +92,9 @@ export default function AdminDashboard() {
     if (!usuarios?.items || !espacios?.items || pendientes.length === 0) return [];
     
     // Crear mapas optimizados para búsqueda O(1)
-    const usuariosMap = new Map(
-      usuarios.items.map(u => [Number(u.id), u])
-    );
-    const espaciosMap = new Map(
-      espacios.items.map(e => [Number(e.id), e])
-    );
-    
+    const usuariosMap = usuariosLookup;
+    const espaciosMap = espaciosLookup;
+
     console.log('🔗 Mapeo de reservas:');
     console.log(`  Total usuarios: ${usuarios.items.length}`);
     console.log(`  Total espacios: ${espacios.items.length}`);
@@ -122,7 +129,25 @@ export default function AdminDashboard() {
         espacioNombre: espacio?.nombre || (espacioId ? `Espacio #${espacioId}` : 'Espacio no especificado'),
       };
     });
-  }, [pendientes, usuarios, espacios]);
+  }, [pendientes, usuariosLookup, espaciosLookup]);
+
+  const topEspacios = useMemo(() => {
+    if (!espacios?.items) return [] as { label: string; cantidad: number }[];
+    const counts = new Map<number, number>();
+    reservasTodas.forEach((reserva) => {
+      const id = Number(reserva.espacioId);
+      if (!Number.isNaN(id)) {
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      }
+    });
+    return Array.from(counts.entries())
+      .map(([id, cantidad]) => ({
+        label: espaciosLookup.get(id)?.nombre ?? `Espacio #${id}`,
+        cantidad,
+      }))
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 5);
+  }, [reservasTodas, espaciosLookup, espacios]);
 
   // Datos para gráfica: reservas por día últimos 7 días
   const chartData = useMemo(() => {
@@ -140,9 +165,10 @@ export default function AdminDashboard() {
 
   // Manejo de eventos en vivo
   const invalidateAdmin = () => {
-    queryClient.invalidateQueries({ queryKey: ['admin-estadisticas'] });
-    queryClient.invalidateQueries({ queryKey: ['admin-top-espacios'] });
     queryClient.invalidateQueries({ queryKey: ['admin-reservas'] });
+    queryClient.invalidateQueries({ queryKey: ['estadisticas-generales'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-usuarios'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-espacios'] });
   };
   useWebSocketSubscription('reserva_creada', invalidateAdmin);
   useWebSocketSubscription('reserva_aprobada', invalidateAdmin);
