@@ -101,11 +101,19 @@ class GroqAdapter(LLMProvider):
             if max_tokens:
                 params["max_tokens"] = max_tokens
             
-            # TODO: Function calling en Commit 2
-            # if tools:
-            #     params["tools"] = tools
+            # Function calling (Groq usa formato OpenAI)
+            if tools:
+                # Groq espera el mismo formato que OpenAI
+                params["tools"] = tools
+                params["tool_choice"] = "auto"  # Permite al LLM decidir cuándo usar tools
+                logger.debug("Function calling enabled with %d tools", len(tools))
             
-            logger.debug("Generating response with Groq (model=%s, temp=%s)", self.model, temperature)
+            logger.debug(
+                "Generating response with Groq (model=%s, temp=%s, tools=%s)",
+                self.model,
+                temperature,
+                len(tools) if tools else 0
+            )
             
             # Generar respuesta
             response = self.client.chat.completions.create(**params)
@@ -137,7 +145,12 @@ class GroqAdapter(LLMProvider):
                         for tc in response.choices[0].message.tool_calls
                     ]
             
-            logger.info("Groq response generated successfully (tokens=%s, model=%s)", tokens_used, self.model)
+            logger.info(
+                "Groq response generated successfully (tokens=%s, model=%s, tool_calls=%s)",
+                tokens_used,
+                self.model,
+                len(tool_calls) if tool_calls else 0
+            )
             
             return LLMResponse(
                 content=content,
