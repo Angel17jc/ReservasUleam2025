@@ -66,17 +66,21 @@ class Settings(BaseSettings):
     )
     
     # ===== Service Integration URLs =====
-    REST_SERVICE_URL: HttpUrl = Field(
+    REST_SERVICE_URL: str = Field(
         default="http://localhost:8000",
         description="REST Service base URL"
     )
-    PAYMENT_SERVICE_URL: HttpUrl = Field(
+    PAYMENT_SERVICE_URL: str = Field(
         default="http://localhost:8001",
         description="Payment Service base URL"
     )
-    AUTH_SERVICE_URL: HttpUrl = Field(
+    AUTH_SERVICE_URL: str = Field(
         default="http://localhost:9000",
         description="Auth Service base URL"
+    )
+    WEBSOCKET_SERVICE_URL: str = Field(
+        default="http://localhost:3001",
+        description="WebSocket Service base URL"
     )
     WEBSOCKET_SERVICE_URL: HttpUrl = Field(
         default="http://localhost:3001",

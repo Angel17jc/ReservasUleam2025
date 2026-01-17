@@ -19,9 +19,11 @@ from sqlalchemy.exc import OperationalError
 
 from app.config import settings
 from app.database import engine, Base
-from app.routes import health, chat
+from app.routes import health, chat, image
 # Import models to register them with SQLAlchemy
 from app.models import Conversation, Message, ToolExecution  # noqa: F401
+# Import MCP tools to register them
+from app import mcp  # noqa: F401
 
 # ================================
 # Logging Configuration
@@ -89,6 +91,17 @@ async def lifespan(_app: FastAPI):
             status_icon = "✓" if is_configured else "✗"
             status_text = 'configured' if is_configured else 'not configured'
             logger.info("  %s %s: %s", status_icon, provider, status_text)
+        
+        # Verificar MCP Tools registrados
+        from app.mcp import ToolRegistry
+        total_tools = ToolRegistry.count()
+        logger.info("MCP Tools registered: %s", total_tools)
+        
+        if total_tools > 0:
+            tool_names = ToolRegistry.list_tool_names()
+            logger.info("  Tools: %s", ', '.join(tool_names))
+        else:
+            logger.warning("  ⚠ No MCP tools registered!")
         
         logger.info("=" * 60)
         logger.info("AI Service Ready on port %s", settings.PORT)
@@ -236,6 +249,7 @@ async def root():
 # Incluir routers
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
+app.include_router(image.router, prefix="/api/v1")
 
 
 # ================================

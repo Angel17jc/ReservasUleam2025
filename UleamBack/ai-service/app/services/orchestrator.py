@@ -17,13 +17,16 @@ Principios aplicados:
 """
 
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import logging
 import time
+import json
 
 from ..adapters.base import LLMMessage, LLMResponse
 from ..adapters.adapter_factory import AdapterFactory
 from ..services.conversation_service import ConversationService
+from ..services.tool_execution_manager import ToolExecutionManager
+from ..mcp.tool_registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,7 @@ Responde en español de manera natural y conversacional."""
         """
         self.db = db
         self.conversation_service = ConversationService()
+        self.tool_manager = ToolExecutionManager()
         
         # Crear adapter del LLM
         try:
@@ -72,6 +76,10 @@ Responde en español de manera natural y conversacional."""
         except Exception as e:
             logger.error("Failed to initialize LLM adapter: %s", e)
             raise
+        
+        # Log de tools disponibles
+        available_tools = ToolRegistry.count()
+        logger.info("Tools available: %d", available_tools)
     
     async def process_message(
         self,
@@ -141,15 +149,45 @@ Responde en español de manera natural y conversacional."""
             # 3. Construir contexto (historial de mensajes)
             context_messages = self._build_context(conversation.id)
             
-            # 4. Generar respuesta del LLM
+            # 4. Obtener tools disponibles del registry
+            available_tools = self.tool_manager.get_available_tools()
+            logger.debug("Available tools for LLM: %d", len(available_tools))
+            
+            # 5. Generar respuesta del LLM (puede incluir tool calls)
             logger.debug("Generating LLM response (provider=%s)", self.llm_adapter.provider_name)
             
             llm_response: LLMResponse = await self.llm_adapter.generate_response(
                 messages=context_messages,
-                temperature=temperature
+                temperature=temperature,
+                tools=available_tools  # Pasar tools al LLM
             )
             
-            # 5. Guardar respuesta del assistant
+            # 6. Manejar tool calls si existen (flujo iterativo)
+            if llm_response.tool_calls:
+                logger.info(
+                    "LLM requested %d tool call(s), executing...",
+                    len(llm_response.tool_calls)
+                )
+                
+                # Ejecutar las tools solicitadas
+                tool_results = await self._execute_tool_calls(
+                    conversation_id=conversation.id,
+                    tool_calls=llm_response.tool_calls
+                )
+                
+                # Reinsertar resultados en el contexto y obtener respuesta final
+                final_response = await self._get_final_response_after_tools(
+                    context_messages=context_messages,
+                    tool_calls=llm_response.tool_calls,
+                    tool_results=tool_results,
+                    temperature=temperature,
+                    available_tools=available_tools
+                )
+                
+                # Usar la respuesta final
+                llm_response = final_response
+            
+            # 7. Guardar respuesta del assistant
             assistant_msg = self.conversation_service.add_message(
                 self.db,
                 conversation_id=conversation.id,
@@ -254,6 +292,175 @@ Responde en español de manera natural y conversacional."""
             title += "..."
         
         return title or "Nueva conversación"
+    
+    async def _execute_tool_calls(
+        self,
+        conversation_id: int,
+        tool_calls: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Ejecuta las tool calls solicitadas por el LLM.
+        
+        Args:
+            conversation_id: ID de la conversación
+            tool_calls: Lista de tool calls del LLM
+        
+        Returns:
+            Lista de resultados de las tools
+        """
+        try:
+            # Ejecutar todas las tool calls
+            results = await self.tool_manager.execute_multiple_tools(tool_calls)
+            
+            # Guardar cada tool call como mensaje en la conversación
+            for tool_call, result in zip(tool_calls, results):
+                # Extraer nombre de la tool
+                tool_name = tool_call.get("function", {}).get("name", "unknown")
+                
+                # Guardar mensaje de tool result
+                self.conversation_service.add_message(
+                    self.db,
+                    conversation_id=conversation_id,
+                    role="tool",
+                    content=json.dumps(result, ensure_ascii=False),
+                    tool_calls={"tool_name": tool_name, "result": result}
+                )
+                
+                logger.debug(
+                    "Tool result saved: tool=%s, success=%s",
+                    tool_name,
+                    result.get("success")
+                )
+            
+            return results
+        
+        except Exception as e:
+            logger.error("Error executing tool calls: %s", e, exc_info=True)
+            # Retornar error como resultado
+            return [{
+                "success": False,
+                "error": f"Failed to execute tools: {str(e)}"
+            }]
+    
+    async def _get_final_response_after_tools(
+        self,
+        context_messages: List[LLMMessage],
+        tool_calls: List[Dict[str, Any]],
+        tool_results: List[Dict[str, Any]],
+        temperature: float,
+        available_tools: List[Dict[str, Any]]
+    ) -> LLMResponse:
+        """
+        Obtiene la respuesta final del LLM después de ejecutar las tools.
+        
+        Reinsereta los resultados de las tools en el contexto y solicita
+        al LLM que genere una respuesta final para el usuario.
+        
+        Args:
+            context_messages: Contexto original
+            tool_calls: Tool calls ejecutadas
+            tool_results: Resultados de las tools
+            temperature: Temperatura para el LLM
+            available_tools: Tools disponibles
+        
+        Returns:
+            LLMResponse final del LLM
+        """
+        try:
+            # Crear nuevo contexto con los resultados de las tools
+            extended_context = context_messages.copy()
+            
+            # Agregar mensaje del assistant con tool calls
+            extended_context.append(LLMMessage(
+                role="assistant",
+                content="[Ejecutando herramientas...]"
+            ))
+            
+            # Agregar resultados de cada tool como mensaje
+            for tool_call, result in zip(tool_calls, tool_results):
+                tool_name = tool_call.get("function", {}).get("name", "unknown")
+                
+                # Formatear resultado para el LLM
+                if result.get("success"):
+                    result_text = f"Herramienta '{tool_name}' ejecutada exitosamente.\n\n"
+                    
+                    # Incluir summary si existe (más conciso)
+                    if "summary" in result:
+                        result_text += f"Resumen: {result['summary']}\n\n"
+                    
+                    # Incluir datos si existen
+                    if "data" in result:
+                        result_text += f"Datos: {json.dumps(result['data'], ensure_ascii=False, indent=2)}"
+                else:
+                    result_text = f"Error ejecutando herramienta '{tool_name}': {result.get('error', 'Unknown error')}"
+                
+                extended_context.append(LLMMessage(
+                    role="tool",
+                    content=result_text
+                ))
+            
+            # Agregar instrucción para que el LLM genere respuesta final
+            extended_context.append(LLMMessage(
+                role="user",
+                content="Basándote en los resultados de las herramientas, proporciona una respuesta clara y útil al usuario."
+            ))
+            
+            logger.debug(
+                "Requesting final response from LLM with %d tool results",
+                len(tool_results)
+            )
+            
+            # Generar respuesta final
+            final_response = await self.llm_adapter.generate_response(
+                messages=extended_context,
+                temperature=temperature,
+                tools=available_tools  # Mantener tools disponibles por si necesita llamar más
+            )
+            
+            # Si el LLM solicita más tool calls, limitamos a 1 iteración adicional
+            # para evitar loops infinitos
+            if final_response.tool_calls:
+                logger.warning(
+                    "LLM requested additional tool calls in final response, "
+                    "limiting to prevent infinite loop"
+                )
+                # Ejecutar una iteración más pero sin tools en la siguiente
+                additional_results = await self.tool_manager.execute_multiple_tools(
+                    final_response.tool_calls
+                )
+                
+                # Construir mensaje final con los resultados adicionales
+                summary_text = "He ejecutado las herramientas adicionales. "
+                for res in additional_results:
+                    if res.get("success") and "summary" in res:
+                        summary_text += res["summary"] + " "
+                
+                # Crear respuesta sintética
+                final_response = LLMResponse(
+                    content=summary_text.strip(),
+                    model=final_response.model,
+                    provider=final_response.provider,
+                    tokens_used=final_response.tokens_used,
+                    finish_reason="stop",
+                    tool_calls=None
+                )
+            
+            logger.info("Final response generated after tool execution")
+            
+            return final_response
+        
+        except Exception as e:
+            logger.error("Error getting final response after tools: %s", e, exc_info=True)
+            
+            # Retornar respuesta de error
+            return LLMResponse(
+                content=f"Lo siento, hubo un error al procesar los resultados de las herramientas: {str(e)}",
+                model=self.llm_adapter.provider_name,
+                provider=self.llm_adapter.provider_name,
+                tokens_used=None,
+                finish_reason="error",
+                tool_calls=None
+            )
     
     async def generate_title_with_llm(self, conversation_id: int) -> Optional[str]:
         """
