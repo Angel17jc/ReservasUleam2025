@@ -133,7 +133,7 @@ class ConversationService:
         """
         try:
             # Validar rol
-            valid_roles = ['user', 'assistant', 'system']
+            valid_roles = ['user', 'assistant', 'system', 'tool']
             if role not in valid_roles:
                 raise ValueError(f"Invalid role: {role}. Must be one of {valid_roles}")
             
