@@ -23,7 +23,7 @@ python-multipart==0.0.6
 httpx==0.26.0
 
 # LLM Providers (GRATIS)
-google-generativeai==0.3.2    # Google Gemini Pro & Vision
+google-genai>=1.60.0           # Google Gemini Pro & Vision (nueva API oficial)
 groq==0.4.0                    # Groq (Llama 3, Mixtral)
 
 # Image Processing (para Commit 2)

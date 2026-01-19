@@ -3,14 +3,14 @@ Estadísticas de Reservas Tool (REPORTE)
 
 Genera reportes y estadísticas sobre el uso de espacios.
 """
-
+import logging
 from typing import List
 from datetime import datetime, timedelta
 from collections import Counter
 from ..base_tool import BaseTool, ToolParameter, ToolResult, ToolCategory, ParameterType
 from ..tool_registry import register_tool
 from ..tool_executor import ToolExecutor
-import logging
+
 
 logger = logging.getLogger(__name__)
 

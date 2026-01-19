@@ -112,6 +112,7 @@ Responde en español de manera natural y conversacional."""
             Exception: Si falla el procesamiento
         """
         start_time = time.time()
+        tools_executed_info = []  # Track tool executions for response
         
         try:
             # 1. Obtener o crear conversación
@@ -175,6 +176,27 @@ Responde en español de manera natural y conversacional."""
                     tool_calls=llm_response.tool_calls
                 )
                 
+                # Capturar información de tool executions para el response
+                for tool_call, result in zip(llm_response.tool_calls, tool_results):
+                    tool_name = tool_call.get("function", {}).get("name", "unknown")
+                    arguments = tool_call.get("function", {}).get("arguments", {})
+                    
+                    # Si arguments es string JSON, parsearlo
+                    if isinstance(arguments, str):
+                        try:
+                            arguments = json.loads(arguments)
+                        except json.JSONDecodeError:
+                            arguments = {}
+                    
+                    tools_executed_info.append({
+                        "tool_name": tool_name,
+                        "arguments": arguments,
+                        "result": result.get("data"),
+                        "success": result.get("success", False),
+                        "error_message": result.get("error"),
+                        "execution_time": result.get("execution_time_ms")
+                    })
+                
                 # Reinsertar resultados en el contexto y obtener respuesta final
                 final_response = await self._get_final_response_after_tools(
                     context_messages=context_messages,
@@ -227,6 +249,7 @@ Responde en español de manera natural y conversacional."""
                 "model": llm_response.model,
                 "provider": llm_response.provider,
                 "tokens_used": llm_response.tokens_used,
+                "tools_executed": tools_executed_info if tools_executed_info else None,
                 "processing_time_seconds": round(elapsed_time, 2)
             }
         

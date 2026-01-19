@@ -5,7 +5,7 @@ from .config import settings
 
 # Build connection URL using individual parameters to avoid encoding issues
 db_url = URL.create(
-    drivername="postgresql+psycopg2",
+    drivername="postgresql+psycopg",
     username=settings.DB_USERNAME,
     password=settings.DB_PASSWORD,
     host=settings.DB_HOST,
@@ -25,7 +25,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Auth database (read-only for user validation)
 auth_db_url = URL.create(
-    drivername="postgresql+psycopg2",
+    drivername="postgresql+psycopg",
     username=settings.AUTH_DB_USERNAME,
     password=settings.AUTH_DB_PASSWORD,
     host=settings.AUTH_DB_HOST,

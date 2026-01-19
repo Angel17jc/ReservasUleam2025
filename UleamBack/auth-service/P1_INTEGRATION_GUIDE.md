@@ -1551,6 +1551,5 @@ curl -X POST http://localhost:9000/api/v1/auth/validate \
 
 ---
 
-**Última actualización**: Enero 2026  
 **Autor**: Auth Service Team  
 **Versión**: 1.0.0

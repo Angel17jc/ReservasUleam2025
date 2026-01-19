@@ -10,10 +10,10 @@ Endpoints:
 - POST /image/identify-space - Identificar espacio
 - POST /image/analyze-document - Analizar documento
 """
-
+import logging
+import time
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
-import logging
 import time
 from typing import Optional
 
@@ -43,7 +43,7 @@ router = APIRouter(prefix="/image", tags=["image"])
 # Dependencia para ImageService
 def get_image_service() -> ImageService:
     """Dependency injection para ImageService."""
-    return ImageService(gemini_api_key=settings.gemini_api_key)
+    return ImageService(gemini_api_key=settings.GEMINI_API_KEY)
 
 
 @router.post(

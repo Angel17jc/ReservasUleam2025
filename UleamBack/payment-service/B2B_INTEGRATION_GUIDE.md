@@ -608,4 +608,3 @@ curl -X POST http://localhost:8001/api/v1/partners/webhook \
 ---
 
 **Versión**: 1.0  
-**Última actualización**: 19 de Enero de 2026

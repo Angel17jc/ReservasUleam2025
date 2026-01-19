@@ -14,10 +14,9 @@ Principios aplicados:
 - Single Responsibility: Solo ejecuta llamadas HTTP
 - Dependency Injection: Recibe configuración
 """
-
+import logging
 import httpx
 from typing import Dict, Any, Optional
-import logging
 from ..config import settings
 
 logger = logging.getLogger(__name__)

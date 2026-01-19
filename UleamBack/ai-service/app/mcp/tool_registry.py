@@ -8,10 +8,10 @@ Principios aplicados:
 - Single Responsibility: Solo maneja registro de tools
 - Open/Closed: Extensible sin modificación
 """
-
+import logging
 from typing import Dict, List, Optional
 from .base_tool import BaseTool, ToolCategory
-import logging
+
 
 logger = logging.getLogger(__name__)
 

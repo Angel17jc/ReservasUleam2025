@@ -3,6 +3,7 @@ export const env = {
   paymentBaseUrl: import.meta.env.VITE_PAYMENT_BASE_URL?.trim() ?? "",
   graphqlUrl: import.meta.env.VITE_GRAPHQL_URL?.trim() ?? "",
   wsUrl: import.meta.env.VITE_WS_URL?.trim() ?? "",
+  aiServiceUrl: import.meta.env.VITE_AI_SERVICE_URL?.trim() ?? "",
 };
 
 export function ensureEnvValue(name: keyof typeof env): string {

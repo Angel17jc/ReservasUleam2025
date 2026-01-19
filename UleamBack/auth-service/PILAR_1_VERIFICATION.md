@@ -521,6 +521,5 @@ async validate(payload: JwtPayload) {
 
 ---
 
-**Fecha de verificación**: 10 de enero de 2026  
 **Versión**: 1.0.0  
 **Estado**: ✅ Completado y validado
