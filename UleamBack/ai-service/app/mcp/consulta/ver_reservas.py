@@ -32,9 +32,12 @@ class VerReservasTool(BaseTool):
         return """Consulta reservas existentes en el sistema de reservas ULEAM.
 
 Puedes filtrar por:
-- usuario_id: ID del usuario que hizo la reserva
+- usuario_id: ID numérico del usuario (usa el ID del usuario actual del contexto)
 - espacio_id: ID del espacio reservado
 - estado_id: Estado de la reserva (1=pendiente, 2=confirmada, 3=cancelada, 4=completada)
+
+IMPORTANTE: Para consultar las reservas del usuario actual, usa su ID numérico real del contexto.
+Si el usuario pregunta "mis reservas" o "tengo reservas", consulta usando su usuario_id.
 
 Retorna una lista de reservas con información completa: usuario, espacio, fecha, horario, estado, propósito."""
     
@@ -43,7 +46,7 @@ Retorna una lista de reservas con información completa: usuario, espacio, fecha
             ToolParameter(
                 name="usuario_id",
                 type=ParameterType.INTEGER,
-                description="ID del usuario para filtrar sus reservas",
+                description="ID numérico del usuario (número entero, NO un string). Usa el ID del usuario actual del contexto para consultar SUS reservas",
                 required=False
             ),
             ToolParameter(

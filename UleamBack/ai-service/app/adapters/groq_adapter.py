@@ -265,9 +265,9 @@ class GroqAdapter(LLMProvider):
         """
         Formatea mensajes para Groq, manejando roles especiales.
         
-        Groq acepta roles: system, user, assistant, tool
-        - role="tool" requiere tool_call_id (complejo)
-        - Solución: convertir role="tool" a role="user" con prefijo
+        Groq acepta roles: system, user, assistant
+        - Los tool results se guardan como 'system' con metadata
+        - Los convertimos a 'user' con prefijo descriptivo
         
         Args:
             messages: Lista de mensajes LLM
@@ -279,13 +279,19 @@ class GroqAdapter(LLMProvider):
         
         for msg in messages:
             if msg.role == "tool":
-                # Convertir role="tool" a role="user" con prefijo descriptivo
+                # Legacy support: convertir role="tool" a role="user" con prefijo
                 formatted.append({
                     "role": "user",
                     "content": f"[Resultado de herramienta]\n{msg.content}"
                 })
+            elif msg.role == "system" and "[Tool Result:" in msg.content:
+                # Tool result guardado como 'system' - convertir a 'user'
+                formatted.append({
+                    "role": "user",
+                    "content": msg.content
+                })
             elif msg.role == "system":
-                # Groq acepta role="system"
+                # System messages normales
                 formatted.append({
                     "role": "system",
                     "content": msg.content

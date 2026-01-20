@@ -42,18 +42,26 @@ class AIOrchestrator:
     DEFAULT_SYSTEM_PROMPT = """Eres un asistente virtual inteligente para el sistema de reservas de espacios de la ULEAM (Universidad Laica Eloy Alfaro de Manabí).
 
 Tu función principal es ayudar a los usuarios con:
-- Buscar y consultar información sobre reservas de espacios
+- Buscar y consultar información sobre espacios disponibles
+- Ver las reservas existentes de los usuarios
 - Crear nuevas reservas de espacios
-- Procesar pagos de reservas
-- Generar reportes y estadísticas
-- Responder preguntas sobre el sistema
+- Registrar nuevos usuarios en el sistema
+- Generar reportes y estadísticas de reservas
 
-Características importantes:
-- Eres amable, profesional y eficiente
-- Das respuestas claras y concisas
-- Confirmas acciones importantes antes de ejecutarlas
-- Si no tienes información, lo indicas claramente
-- Siempre priorizas la experiencia del usuario
+IMPORTANTE - Uso de herramientas:
+- Cuando ejecutes herramientas, SIEMPRE analiza y presenta los resultados de forma clara
+- NO digas solo "he ejecutado las herramientas" sin mostrar los datos
+- Si buscas espacios, menciona los nombres, capacidad y ubicación de los más relevantes
+- Si consultas reservas, indica fechas, espacios y estados
+- Si hay errores, explica qué pasó y sugiere soluciones
+- Usa emojis apropiados para hacer la respuesta más visual (📅 🏢 ✅ ❌ 📊)
+
+Estilo de comunicación:
+- Amable, profesional y eficiente
+- Respuestas claras, estructuradas y fáciles de leer
+- Confirma acciones importantes antes de ejecutarlas
+- Si no tienes información suficiente, pregunta al usuario
+- Siempre prioriza la experiencia del usuario
 
 Responde en español de manera natural y conversacional."""
     
@@ -170,10 +178,16 @@ Responde en español de manera natural y conversacional."""
                     len(llm_response.tool_calls)
                 )
                 
-                # Ejecutar las tools solicitadas
+                # Validar y corregir tool calls automáticamente
+                corrected_tool_calls = self._validate_and_fix_tool_calls(
+                    tool_calls=llm_response.tool_calls,
+                    usuario_id=usuario_id
+                )
+                
+                # Ejecutar las tools solicitadas (con parámetros corregidos)
                 tool_results = await self._execute_tool_calls(
                     conversation_id=conversation.id,
-                    tool_calls=llm_response.tool_calls
+                    tool_calls=corrected_tool_calls
                 )
                 
                 # Capturar información de tool executions para el response
@@ -257,17 +271,19 @@ Responde en español de manera natural y conversacional."""
             logger.error("Error processing message: %s", e, exc_info=True)
             raise RuntimeError(f"Failed to process message: {str(e)}") from e
     
-    def _build_context(self, conversation_id: int, max_messages: int = 20) -> List[LLMMessage]:
+    def _build_context(self, conversation_id: int, max_messages: int = 20, usuario_id: Optional[int] = None) -> List[LLMMessage]:
         """
         Construye el contexto de la conversación para enviar al LLM.
         
         Incluye:
         - System prompt
+        - Contexto del usuario (para tools)
         - Últimos N mensajes de la conversación
         
         Args:
             conversation_id: ID de la conversación
             max_messages: Máximo de mensajes de historial
+            usuario_id: ID del usuario actual (para contexto de herramientas)
         
         Returns:
             List[LLMMessage]: Lista de mensajes para el LLM
@@ -280,7 +296,18 @@ Responde en español de manera natural y conversacional."""
             content=self.DEFAULT_SYSTEM_PROMPT
         ))
         
-        # 2. Historial de mensajes previos
+        # 2. Contexto del usuario para tools
+        if usuario_id:
+            messages.append(LLMMessage(
+                role="system",
+                content=f"""CONTEXTO DEL USUARIO ACTUAL:
+- ID de usuario: {usuario_id}
+- Cuando uses herramientas que requieran 'usuario_id', USA SIEMPRE el valor: {usuario_id}
+- NUNCA uses valores genéricos como "tu_id", "usuario_id", o strings
+- Este es el ID numérico real para consultar datos del usuario"""
+            ))
+        
+        # 3. Historial de mensajes previos
         history = self.conversation_service.get_conversation_messages(
             self.db,
             conversation_id=conversation_id,
@@ -295,6 +322,76 @@ Responde en español de manera natural y conversacional."""
         
         logger.debug("Built context with %d messages (including system prompt)", len(messages))
         return messages
+    
+    def _validate_and_fix_tool_calls(
+        self,
+        tool_calls: List[Dict[str, Any]],
+        usuario_id: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Valida y corrige automáticamente los parámetros de tool calls.
+        
+        Problema común: LLMs como Groq a veces ignoran el contexto y generan
+        valores genéricos como "tu_id", "usuario_id" en vez del ID real.
+        
+        Esta función intercepta y corrige esos valores automáticamente.
+        
+        Args:
+            tool_calls: Tool calls generadas por el LLM
+            usuario_id: ID real del usuario actual
+        
+        Returns:
+            Tool calls corregidas con parámetros válidos
+        """
+        corrected_calls = []
+        
+        for tool_call in tool_calls:
+            corrected_call = tool_call.copy()
+            
+            # Extraer función y argumentos
+            function_data = corrected_call.get("function", {})
+            tool_name = function_data.get("name", "")
+            arguments = function_data.get("arguments", {})
+            
+            # Si arguments es string JSON, parsearlo
+            if isinstance(arguments, str):
+                try:
+                    arguments = json.loads(arguments)
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse arguments JSON for {tool_name}: {arguments}")
+                    arguments = {}
+            
+            # Validar y corregir usuario_id si existe
+            if "usuario_id" in arguments:
+                original_value = arguments["usuario_id"]
+                
+                # Detectar valores inválidos (strings genéricos, None, etc)
+                invalid_values = [
+                    "tu_id", "tu_id_de_usuario", "usuario_id", "user_id",
+                    "id_usuario", "your_id", "current_user_id", None, ""
+                ]
+                
+                # Si es string genérico o None, reemplazar con ID real
+                if original_value in invalid_values or isinstance(original_value, str):
+                    logger.info(
+                        f"🔧 Auto-correcting usuario_id in {tool_name}: "
+                        f"'{original_value}' → {usuario_id}"
+                    )
+                    arguments["usuario_id"] = usuario_id
+                # Si es número pero 0 o negativo, también corregir
+                elif isinstance(original_value, (int, float)) and original_value <= 0:
+                    logger.info(
+                        f"🔧 Auto-correcting invalid usuario_id in {tool_name}: "
+                        f"{original_value} → {usuario_id}"
+                    )
+                    arguments["usuario_id"] = usuario_id
+            
+            # Actualizar argumentos corregidos
+            corrected_call["function"]["arguments"] = arguments
+            corrected_calls.append(corrected_call)
+        
+        logger.debug(f"Validated and corrected {len(corrected_calls)} tool calls")
+        return corrected_calls
     
     def _generate_title_from_message(self, message: str, max_length: int = 50) -> str:
         """
@@ -340,13 +437,13 @@ Responde en español de manera natural y conversacional."""
                 # Extraer nombre de la tool
                 tool_name = tool_call.get("function", {}).get("name", "unknown")
                 
-                # Guardar mensaje de tool result
+                # Guardar mensaje de tool result como 'system' (BD no permite 'tool')
                 self.conversation_service.add_message(
                     self.db,
                     conversation_id=conversation_id,
-                    role="tool",
-                    content=json.dumps(result, ensure_ascii=False),
-                    tool_calls={"tool_name": tool_name, "result": result}
+                    role="system",  # Cambiado de 'tool' a 'system'
+                    content=f"[Tool Result: {tool_name}]\n{json.dumps(result, ensure_ascii=False)}",
+                    tool_calls={"tool_name": tool_name, "result": result, "is_tool_result": True}
                 )
                 
                 logger.debug(
@@ -403,29 +500,65 @@ Responde en español de manera natural y conversacional."""
             for tool_call, result in zip(tool_calls, tool_results):
                 tool_name = tool_call.get("function", {}).get("name", "unknown")
                 
-                # Formatear resultado para el LLM
+                # Formatear resultado para el LLM de forma más descriptiva
                 if result.get("success"):
-                    result_text = f"Herramienta '{tool_name}' ejecutada exitosamente.\n\n"
+                    result_text = f"✅ Resultados de la herramienta '{tool_name}':\n\n"
                     
                     # Incluir summary si existe (más conciso)
-                    if "summary" in result:
-                        result_text += f"Resumen: {result['summary']}\n\n"
+                    if "summary" in result and result["summary"]:
+                        result_text += f"{result['summary']}\n\n"
                     
-                    # Incluir datos si existen
-                    if "data" in result:
-                        result_text += f"Datos: {json.dumps(result['data'], ensure_ascii=False, indent=2)}"
+                    # Incluir datos si existen - formatear según el tipo de tool
+                    if "data" in result and result["data"]:
+                        data = result["data"]
+                        
+                        # Para búsqueda de espacios
+                        if tool_name == "buscarespacios" and isinstance(data, list):
+                            result_text += f"📋 Se encontraron {len(data)} espacios:\n"
+                            for idx, espacio in enumerate(data[:10], 1):  # Limitar a 10
+                                result_text += f"\n{idx}. {espacio.get('nombre', 'N/A')}"
+                                result_text += f"\n   - Capacidad: {espacio.get('capacidad', 'N/A')} personas"
+                                result_text += f"\n   - Tipo: {espacio.get('tipo', 'N/A')}"
+                                if espacio.get('ubicacion'):
+                                    result_text += f"\n   - Ubicación: {espacio['ubicacion']}"
+                        
+                        # Para ver reservas
+                        elif tool_name == "verreservas" and isinstance(data, list):
+                            result_text += f"📅 Tienes {len(data)} reservas:\n"
+                            for idx, reserva in enumerate(data[:10], 1):
+                                result_text += f"\n{idx}. Espacio: {reserva.get('espacio_nombre', 'N/A')}"
+                                result_text += f"\n   - Fecha: {reserva.get('fecha_inicio', 'N/A')}"
+                                result_text += f"\n   - Estado: {reserva.get('estado', 'N/A')}"
+                        
+                        # Para estadísticas
+                        elif tool_name == "estadisticasreservas" and isinstance(data, dict):
+                            result_text += "📊 Estadísticas:\n"
+                            for key, value in data.items():
+                                result_text += f"\n- {key}: {value}"
+                        
+                        # Fallback: JSON genérico
+                        else:
+                            result_text += f"Datos completos:\n{json.dumps(data, ensure_ascii=False, indent=2)}"
                 else:
-                    result_text = f"Error ejecutando herramienta '{tool_name}': {result.get('error', 'Unknown error')}"
+                    result_text = f"❌ Error al ejecutar '{tool_name}': {result.get('error', 'Unknown error')}"
                 
                 extended_context.append(LLMMessage(
                     role="tool",
                     content=result_text
                 ))
             
-            # Agregar instrucción para que el LLM genere respuesta final
+            # Agregar instrucción específica para que el LLM sintetice los resultados
             extended_context.append(LLMMessage(
                 role="user",
-                content="Basándote en los resultados de las herramientas, proporciona una respuesta clara y útil al usuario."
+                content=(
+                    "IMPORTANTE: Analiza los resultados anteriores y responde al usuario de forma conversacional.\n"
+                    "- Si hay espacios disponibles, menciona los más relevantes con sus características\n"
+                    "- Si hay reservas, resume las más importantes o próximas\n"
+                    "- Si hay estadísticas, explica los números de forma comprensible\n"
+                    "- Si hubo errores, explica qué salió mal y sugiere alternativas\n"
+                    "- NO digas solo 'he ejecutado las herramientas', MUESTRA los resultados reales\n"
+                    "- Usa un tono amigable y profesional"
+                )
             ))
             
             logger.debug(
@@ -433,42 +566,17 @@ Responde en español de manera natural y conversacional."""
                 len(tool_results)
             )
             
-            # Generar respuesta final
+            # Generar respuesta final SIN tools para forzar que responda con texto
             final_response = await self.llm_adapter.generate_response(
                 messages=extended_context,
                 temperature=temperature,
-                tools=available_tools  # Mantener tools disponibles por si necesita llamar más
+                tools=None  # NO permitir más tool calls, debe responder al usuario
             )
             
-            # Si el LLM solicita más tool calls, limitamos a 1 iteración adicional
-            # para evitar loops infinitos
-            if final_response.tool_calls:
-                logger.warning(
-                    "LLM requested additional tool calls in final response, "
-                    "limiting to prevent infinite loop"
-                )
-                # Ejecutar una iteración más pero sin tools en la siguiente
-                additional_results = await self.tool_manager.execute_multiple_tools(
-                    final_response.tool_calls
-                )
-                
-                # Construir mensaje final con los resultados adicionales
-                summary_text = "He ejecutado las herramientas adicionales. "
-                for res in additional_results:
-                    if res.get("success") and "summary" in res:
-                        summary_text += res["summary"] + " "
-                
-                # Crear respuesta sintética
-                final_response = LLMResponse(
-                    content=summary_text.strip(),
-                    model=final_response.model,
-                    provider=final_response.provider,
-                    tokens_used=final_response.tokens_used,
-                    finish_reason="stop",
-                    tool_calls=None
-                )
-            
-            logger.info("Final response generated after tool execution")
+            logger.info(
+                "Final response generated after tool execution (tokens=%s)",
+                final_response.tokens_used
+            )
             
             return final_response
         
