@@ -64,7 +64,7 @@ class ImageService:
             gemini_api_key: API key de Gemini (None = usar de settings)
         """
         # Inicializar Gemini adapter para Vision
-        api_key = gemini_api_key or settings.gemini_api_key
+        api_key = gemini_api_key or settings.GEMINI_API_KEY
         if not api_key:
             raise ValueError("Gemini API key is required for image processing")
         

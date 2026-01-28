@@ -3,11 +3,10 @@ Health Check Routes
 
 Endpoints simples para verificar el estado del servicio.
 """
-
+import logging
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import Dict
-import logging
 
 from ..database import get_db, check_db_connection
 from ..adapters.adapter_factory import AdapterFactory

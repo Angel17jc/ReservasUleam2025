@@ -4,18 +4,21 @@ Gemini Adapter
 Implementación del LLM Provider para Google Gemini Pro.
 
 Características:
-- Gemini Pro para texto (GRATIS)
-- Gemini Pro Vision para imágenes (GRATIS)
+- Gemini 2.5 Flash para texto (GRATIS)
+- Gemini 2.5 Flash Vision para imágenes (GRATIS)
 - 60 requests/minuto en tier gratuito
 - Excelente calidad de respuestas
+- Soporte multimodal nativo (texto + imagen)
 
 API Documentation: https://ai.google.dev/docs
+Migrado a google.genai (nueva API oficial)
 """
 
-import google.generativeai as genai
-from google.generativeai.types import FunctionDeclaration, Tool
+from google import genai
+from google.genai import types
 from typing import List, Dict, Any, Optional
 import logging
+import base64
 
 from .base import LLMProvider, LLMMessage, LLMResponse
 
@@ -27,11 +30,12 @@ class GeminiAdapter(LLMProvider):
     Adapter para Google Gemini Pro.
     
     Implementa el patrón Strategy para poder intercambiar con otros providers.
+    Usa la nueva API google.genai (migrada desde google.generativeai)
     """
     
     # Modelos disponibles de Gemini (actualizados enero 2026)
-    TEXT_MODEL = "gemini-2.5-flash"  # Gemini 2.5 Flash - más potente y rápido
-    VISION_MODEL = "gemini-2.5-flash"  # Soporta texto e imágenes
+    TEXT_MODEL = "models/gemini-2.5-flash"  # Gemini 2.5 Flash - modelo estable y rápido
+    VISION_MODEL = "models/gemini-2.5-flash"  # Soporta texto e imágenes nativamente
     
     def __init__(self, api_key: Optional[str] = None):
         """
@@ -48,12 +52,8 @@ class GeminiAdapter(LLMProvider):
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY is required")
         
-        # Configurar Gemini
-        genai.configure(api_key=self.api_key)
-        
-        # Initialize models
-        self._text_model = genai.GenerativeModel(self.TEXT_MODEL)
-        self._vision_model = genai.GenerativeModel(self.VISION_MODEL)
+        # Configurar cliente Gemini con la nueva API
+        self._client = genai.Client(api_key=self.api_key)
         
         logger.info("Gemini adapter initialized with model: %s", self.TEXT_MODEL)
     
@@ -71,7 +71,7 @@ class GeminiAdapter(LLMProvider):
             messages: Historial de mensajes
             temperature: Creatividad (0.0-2.0)
             max_tokens: Límite de tokens (None = sin límite)
-            tools: Tools MCP disponibles (Commit 2)
+            tools: Tools MCP disponibles (actualmente deshabilitadas)
         
         Returns:
             LLMResponse: Respuesta normalizada
@@ -84,97 +84,61 @@ class GeminiAdapter(LLMProvider):
             self._validate_messages(messages)
             self._validate_temperature(temperature)
             
-            # Convertir mensajes al formato de Gemini
-            # Gemini usa un formato simplificado: solo el contenido
-            # El último mensaje debe ser del user
-            prompt = self._build_prompt(messages)
+            # Construir contenido del mensaje
+            # La nueva API usa una lista de "contents"
+            contents = self._build_contents(messages)
             
             # Configuración de generación
-            generation_config = {
-                "temperature": temperature,
-                "top_p": 0.95,
-                "top_k": 40,
-            }
-            
-            if max_tokens:
-                generation_config["max_output_tokens"] = max_tokens
-            
-            # Preparar tools si están disponibles
-            gemini_tools = None
-            if tools:
-                gemini_tools = self._convert_tools_to_gemini_format(tools)
-                logger.debug("Function calling enabled with %d tools", len(tools))
-            
-            # Generar respuesta
-            logger.debug("Generating response with Gemini (temp=%s, tools=%s)", 
-                        temperature, len(tools) if tools else 0)
-            
-            response = self._text_model.generate_content(
-                prompt,
-                generation_config=generation_config,
-                tools=gemini_tools
+            config = types.GenerateContentConfig(
+                temperature=temperature,
+                top_p=0.95,
+                top_k=40,
+                max_output_tokens=max_tokens or 2048,
+                response_mime_type="text/plain"
             )
             
-            # Extraer function calls si existen
-            tool_calls = None
-            content = ""
+            # Generar respuesta con la nueva API
+            logger.debug("Generating response with Gemini (temp=%s, model=%s)", 
+                        temperature, self.TEXT_MODEL)
             
-            if response.candidates and len(response.candidates) > 0:
-                candidate = response.candidates[0]
-                
-                # Verificar si hay function calls
-                if hasattr(candidate.content, 'parts'):
-                    for part in candidate.content.parts:
-                        # Gemini retorna function_call en las parts
-                        if hasattr(part, 'function_call') and part.function_call:
-                            if tool_calls is None:
-                                tool_calls = []
-                            
-                            # Convertir function call de Gemini a formato estándar
-                            fc = part.function_call
-                            tool_call = {
-                                "id": f"call_{len(tool_calls)}",
-                                "type": "function",
-                                "function": {
-                                    "name": fc.name,
-                                    "arguments": dict(fc.args)  # Gemini retorna dict directamente
-                                }
-                            }
-                            tool_calls.append(tool_call)
-                            logger.debug("Function call detected: %s", fc.name)
-                        
-                        # Extraer texto si existe
-                        elif hasattr(part, 'text') and part.text:
-                            content += part.text
+            response = self._client.models.generate_content(
+                model=self.TEXT_MODEL,
+                contents=contents,
+                config=config
+            )
             
-            # Si no hay function calls, intentar extraer texto normal
-            if not tool_calls and response.text:
-                content = response.text
+            # Extraer respuesta
+            if not response or not response.text:
+                raise ValueError("Empty response from Gemini")
             
-            # Tokens usados (Gemini no expone esto fácilmente en la API gratuita)
+            content = response.text.strip()
+            
+            # Información de uso (retornar solo el total como entero)
             tokens_used = None
-            try:
-                if hasattr(response, 'usage_metadata'):
-                    tokens_used = (
-                        response.usage_metadata.prompt_token_count +
-                        response.usage_metadata.candidates_token_count
-                    )
-            except AttributeError:
-                pass
+            if hasattr(response, 'usage_metadata'):
+                usage = response.usage_metadata
+                total_tokens = getattr(usage, 'total_token_count', 0)
+                tokens_used = total_tokens if total_tokens > 0 else None
+                
+                logger.debug(
+                    "Token usage: prompt=%d, completion=%d, total=%d",
+                    getattr(usage, 'prompt_token_count', 0),
+                    getattr(usage, 'candidates_token_count', 0),
+                    total_tokens
+                )
+            
+            logger.info(
+                "Gemini response generated: length=%d, tokens=%s",
+                len(content),
+                tokens_used if tokens_used else 'unknown'
+            )
             
             # Finish reason
             finish_reason = "stop"
-            try:
-                if response.candidates and len(response.candidates) > 0:
-                    finish_reason = response.candidates[0].finish_reason.name.lower()
-            except (AttributeError, IndexError):
-                pass
-            
-            logger.info(
-                "Gemini response generated successfully (tokens=%s, tool_calls=%s)",
-                tokens_used,
-                len(tool_calls) if tool_calls else 0
-            )
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'finish_reason'):
+                    finish_reason = str(candidate.finish_reason).lower()
             
             return LLMResponse(
                 content=content,
@@ -182,11 +146,11 @@ class GeminiAdapter(LLMProvider):
                 provider=self.provider_name,
                 tokens_used=tokens_used,
                 finish_reason=finish_reason,
-                tool_calls=tool_calls
+                tool_calls=None  # Function calling deshabilitado temporalmente
             )
         
         except Exception as e:
-            logger.error("Error generating Gemini response: %s", e)
+            logger.error("Error generating Gemini response: %s", e, exc_info=True)
             raise RuntimeError(f"Gemini API error: {str(e)}") from e
     
     async def generate_with_vision(
@@ -196,12 +160,12 @@ class GeminiAdapter(LLMProvider):
         image_format: str = "jpeg"
     ) -> str:
         """
-        Analiza una imagen usando Gemini Pro Vision.
+        Analiza una imagen usando Gemini Vision.
         
         Args:
             image_bytes: Bytes de la imagen
             prompt: Prompt para el análisis
-            image_format: Formato (jpeg, png, webp)
+            image_format: Formato (jpeg, png, webp, gif)
         
         Returns:
             str: Análisis de la imagen
@@ -210,26 +174,56 @@ class GeminiAdapter(LLMProvider):
             Exception: Si falla el análisis
         """
         try:
-            logger.debug("Analyzing image with Gemini Vision (format=%s)", image_format)
+            logger.debug("Analyzing image with Gemini Vision (format=%s, size=%d bytes)", 
+                        image_format, len(image_bytes))
             
-            # Gemini Vision acepta directamente los bytes
-            # Preparar la imagen
-            image_part = {
-                "mime_type": f"image/{image_format}",
-                "data": image_bytes
-            }
+            # Construir el contenido multimodal con la nueva API
+            # La nueva API usa types.Part para construir contenido multimodal
+            mime_type = f"image/{image_format}"
             
-            # Generar respuesta con imagen
-            response = self._vision_model.generate_content([prompt, image_part])
+            # Crear part de texto
+            text_part = types.Part(text=prompt)
             
-            content = response.text if response.text else ""
+            # Crear part de imagen usando inline_data
+            image_part = types.Part(
+                inline_data=types.Blob(
+                    mime_type=mime_type,
+                    data=image_bytes
+                )
+            )
             
-            logger.info("Gemini Vision analysis completed (length=%d)", len(content))
+            # Construir el contenido completo
+            contents = [types.Content(parts=[text_part, image_part])]
             
-            return content
+            # Configuración de generación
+            config = types.GenerateContentConfig(
+                temperature=0.4,  # Menor temperatura para análisis más preciso
+                top_p=0.95,
+                max_output_tokens=2048
+            )
+            
+            logger.debug("Sending vision request to Gemini...")
+            
+            # Generar respuesta con visión
+            response = self._client.models.generate_content(
+                model=self.VISION_MODEL,
+                contents=contents,
+                config=config
+            )
+            
+            # Extraer texto de la respuesta
+            if not response or not response.text:
+                raise ValueError("Empty response from Gemini Vision")
+            
+            analysis_text = response.text.strip()
+            
+            logger.info("Gemini Vision analysis completed (length=%d chars)", 
+                       len(analysis_text))
+            
+            return analysis_text
         
         except Exception as e:
-            logger.error("Error analyzing image with Gemini Vision: %s", e)
+            logger.error("Error analyzing image with Gemini Vision: %s", e, exc_info=True)
             raise RuntimeError(f"Gemini Vision API error: {str(e)}") from e
     
     def get_available_models(self) -> List[str]:
@@ -244,6 +238,51 @@ class GeminiAdapter(LLMProvider):
     def provider_name(self) -> str:
         """Nombre del provider."""
         return "gemini"
+    
+    def _build_contents(self, messages: List[LLMMessage]) -> List[types.Content]:
+        """
+        Construye contenido para Gemini desde el historial de mensajes.
+        
+        La nueva API google.genai usa una lista de Content objects
+        en lugar de un prompt simple.
+        
+        Args:
+            messages: Lista de mensajes
+        
+        Returns:
+            List[types.Content]: Lista de contenidos para Gemini
+        """
+        contents = []
+        
+        for msg in messages:
+            # Determinar el rol de Gemini (solo soporta "user" y "model")
+            if msg.role in ("user", "system"):
+                role = "user"
+            elif msg.role == "assistant":
+                role = "model"
+            else:
+                # tool results se tratan como user messages
+                role = "user"
+            
+            # Agregar contexto para system messages
+            text = msg.content
+            if msg.role == "system":
+                text = f"[INSTRUCCIONES DEL SISTEMA]\n{msg.content}"
+            elif msg.role == "tool":
+                text = f"[RESULTADO DE HERRAMIENTA]\n{msg.content}"
+            
+            # Crear part de texto
+            part = types.Part(text=text)
+            
+            # Crear content con el part
+            content = types.Content(
+                role=role,
+                parts=[part]
+            )
+            
+            contents.append(content)
+        
+        return contents
     
     def _build_prompt(self, messages: List[LLMMessage]) -> str:
         """
@@ -273,7 +312,7 @@ class GeminiAdapter(LLMProvider):
         
         return "\n".join(prompt_parts)
     
-    def _convert_tools_to_gemini_format(self, mcp_tools: List[Dict[str, Any]]) -> List[Tool]:
+    def _convert_tools_to_gemini_format(self, mcp_tools: List[Dict[str, Any]]) -> list:
         """
         Convierte schemas de MCP Tools al formato de Gemini Function Declarations.
         
@@ -308,25 +347,31 @@ class GeminiAdapter(LLMProvider):
                     if param_name in required:
                         gemini_params[param_name]["required"] = True
                 
-                # Crear FunctionDeclaration
-                function_declaration = FunctionDeclaration(
-                    name=name,
-                    description=description,
-                    parameters={
-                        "type": "object",
-                        "properties": gemini_params
-                    }
-                )
+                # TODO: Actualizar cuando se actualice google-generativeai
+                # FunctionDeclaration no está disponible en la versión actual
+                # Temporalmente deshabilitado - function calling no funciona
+                logger.warning("Function calling deshabilitado - actualizar google-generativeai")
                 
-                gemini_functions.append(function_declaration)
+                # # Crear FunctionDeclaration
+                # function_declaration = FunctionDeclaration(
+                #     name=name,
+                #     description=description,
+                #     parameters={
+                #         "type": "object",
+                #         "properties": gemini_params
+                #     }
+                # )
+                
+                # gemini_functions.append(function_declaration)
                 
             except Exception as e:
                 logger.warning("Failed to convert tool to Gemini format: %s", e)
                 continue
         
         # Gemini requiere un objeto Tool que contiene las function declarations
-        if gemini_functions:
-            return [Tool(function_declarations=gemini_functions)]
+        # Temporalmente deshabilitado
+        # if gemini_functions:
+        #     return [Tool(function_declarations=gemini_functions)]
         
         return []
     

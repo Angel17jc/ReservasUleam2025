@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     
     # ===== Database Configuration =====
     DATABASE_URL: str = Field(
-        default="postgresql://postgres:postgres@localhost:5432/payment_service_db",
-        description="PostgreSQL connection URL"
+        default="postgresql+psycopg://postgres:postgres@localhost:5432/payment_service_db",
+        description="PostgreSQL connection URL (using psycopg v3 driver)"
     )
     
     # ===== JWT Configuration (shared with auth-service) =====

@@ -9,11 +9,10 @@ Principios aplicados:
 - Open/Closed: Extensible sin modificar código existente
 - Dependency Inversion: Inyección de configuración
 """
-
+import logging
 from pydantic import Field, field_validator, HttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
-import logging
 
 
 class Settings(BaseSettings):
@@ -33,7 +32,7 @@ class Settings(BaseSettings):
     
     # ===== Database Configuration =====
     DATABASE_URL: str = Field(
-        default="postgresql://Reservas_ULEAM:123456@localhost:5432/ai_service_db",
+        default="postgresql+psycopg://Reservas_ULEAM:123456@localhost:5432/ai_service_db",
         description="PostgreSQL connection string"
     )
     

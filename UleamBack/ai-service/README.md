@@ -127,20 +127,29 @@ ENVIRONMENT=development
 
 ### 4. Instalar Dependencias
 
+**IMPORTANTE**: Usar el entorno virtual `.venv-1` (Python 3.14) donde están instaladas las librerías:
+
 ```powershell
 cd C:\ReservasUleam2025\UleamBack\ai-service
-pip install -r requirements.txt
+c:\ReservasUleam2025\.venv-1\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
 ### 5. Iniciar Servicio
 
-```powershell
-# Modo desarrollo (auto-reload)
-python main.py
+**IMPORTANTE**: Usar el Python del entorno virtual, no el del sistema:
 
-# O con uvicorn directamente
-uvicorn main:app --reload --host 0.0.0.0 --port 5000
+```powershell
+# OPCIÓN 1: Activar entorno virtual primero (RECOMENDADO)
+cd C:\ReservasUleam2025\UleamBack\ai-service
+c:\ReservasUleam2025\.venv-1\Scripts\Activate.ps1
+uvicorn main:app --reload --port 5000
+
+# OPCIÓN 2: Usar Python del entorno directamente
+cd C:\ReservasUleam2025\UleamBack\ai-service
+c:\ReservasUleam2025\.venv-1\Scripts\python.exe -m uvicorn main:app --reload --port 5000
 ```
+
+> **Nota**: El módulo es `main:app` (main.py está en la raíz), NO `app.main:app`
 
 El servicio estará disponible en:
 - **API**: http://localhost:5000

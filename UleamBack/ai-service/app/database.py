@@ -8,14 +8,14 @@ Principios aplicados:
 - Dependency Injection: Provee sesiones via dependency
 - Resource Management: Context managers para sesiones
 """
-
+import logging
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
 from sqlalchemy.exc import OperationalError
 from typing import Generator
-import logging
+
 
 from .config import settings
 

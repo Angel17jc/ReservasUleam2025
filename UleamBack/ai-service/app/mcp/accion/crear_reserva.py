@@ -3,13 +3,13 @@ Crear Reserva Tool (ACCIÓN)
 
 Permite crear una nueva reserva de espacio en el sistema.
 """
-
+import logging
 from typing import List
 from datetime import datetime
 from ..base_tool import BaseTool, ToolParameter, ToolResult, ToolCategory, ParameterType
 from ..tool_registry import register_tool
 from ..tool_executor import ToolExecutor
-import logging
+
 
 logger = logging.getLogger(__name__)
 

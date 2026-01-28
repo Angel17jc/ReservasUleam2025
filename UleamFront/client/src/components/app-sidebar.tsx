@@ -13,6 +13,8 @@ import {
   CheckCircle,
   BarChart3,
   CreditCard,
+  Bot,
+  MessageSquare,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -25,6 +27,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarSeparator,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
 import { Link } from 'wouter';
 
@@ -54,9 +57,10 @@ const adminMenuItems = [
 
 interface AppSidebarProps {
   variant: 'user' | 'admin';
+  onOpenChat?: () => void;
 }
 
-export function AppSidebar({ variant }: AppSidebarProps) {
+export function AppSidebar({ variant, onOpenChat }: AppSidebarProps) {
   const showAdmin = variant === 'admin';
   const userMenuItems = getUserMenuItems(variant);
 
@@ -115,6 +119,30 @@ export function AppSidebar({ variant }: AppSidebarProps) {
           </>
         )}
       </SidebarContent>
+      
+      {/* Footer con botón del Chat de IA */}
+      <SidebarFooter className="p-4 mt-auto border-t">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={onOpenChat}
+              className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary hover:to-primary/90 text-primary-foreground font-medium"
+              data-testid="chat-ai-button"
+            >
+              <div className="flex items-center gap-3 w-full">
+                <div className="h-8 w-8 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                  <Bot size={18} />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="text-sm font-semibold">Chat de IA</div>
+                  <div className="text-xs opacity-90">Asistente virtual</div>
+                </div>
+                <MessageSquare size={16} className="opacity-70" />
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

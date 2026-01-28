@@ -9,10 +9,9 @@ Endpoints:
 - GET /chat/conversations/{id}/messages - Ver mensajes
 - GET /chat/providers - Listar providers disponibles
 """
-
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-import logging
 
 from ..database import get_db
 from ..schemas.chat import (
@@ -101,7 +100,8 @@ async def send_message(
             assistant_message=MessageResponse(**result["assistant_message"]),
             model=result["model"],
             provider=result["provider"],
-            tokens_used=result.get("tokens_used")
+            tokens_used=result.get("tokens_used"),
+            tools_executed=result.get("tools_executed")
         )
     
     except ValueError as e:

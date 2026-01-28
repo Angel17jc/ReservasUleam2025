@@ -64,7 +64,7 @@ class Message(Base):
     
     # ===== Constraints =====
     __table_args__ = (
-        CheckConstraint("role IN ('user', 'assistant', 'system')", name="check_message_role"),
+        CheckConstraint("role IN ('user', 'assistant', 'system', 'tool')", name="check_message_role"),
         Index('idx_message_conversation_id', 'conversation_id'),
         Index('idx_message_created_at', 'created_at'),
         Index('idx_message_role', 'role'),

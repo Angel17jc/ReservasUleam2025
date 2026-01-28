@@ -1,12 +1,3 @@
-"""
-AI Service - FastAPI Application
-
-Servicio de chat con IA multimodal (Pilar 3 - 20%)
-Incluye integración con Gemini y Groq.
-
-Author: Sistema de Reservas ULEAM
-Version: 1.0.0
-"""
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware

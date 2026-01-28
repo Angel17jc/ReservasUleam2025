@@ -21,6 +21,7 @@ class LLMRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
+    TOOL = "tool"  # Para resultados de herramientas
 
 
 @dataclass

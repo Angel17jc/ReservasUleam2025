@@ -102,6 +102,26 @@ class MessageResponse(BaseModel):
         from_attributes = True
 
 
+class ToolExecutionInfo(BaseModel):
+    """
+    Información de una tool ejecutada.
+    
+    Attributes:
+        tool_name: Nombre de la tool
+        arguments: Argumentos pasados
+        result: Resultado de la ejecución
+        success: Si fue exitosa
+        error_message: Mensaje de error (si failed)
+        execution_time: Tiempo de ejecución en ms
+    """
+    tool_name: str
+    arguments: Dict[str, Any]
+    result: Optional[Any] = None
+    success: bool
+    error_message: Optional[str] = None
+    execution_time: Optional[int] = None
+
+
 class ChatResponse(BaseModel):
     """
     Response completa del chat incluyendo mensaje del usuario y del assistant.
@@ -113,6 +133,7 @@ class ChatResponse(BaseModel):
         model: Modelo usado
         provider: Provider usado
         tokens_used: Tokens consumidos
+        tools_executed: Lista de tools ejecutadas (si las hay)
     """
     conversation_id: int
     user_message: MessageResponse
@@ -120,6 +141,7 @@ class ChatResponse(BaseModel):
     model: str
     provider: str
     tokens_used: Optional[int] = None
+    tools_executed: Optional[List[ToolExecutionInfo]] = None
 
 
 class ConversationResponse(BaseModel):

@@ -81,15 +81,11 @@ class GroqAdapter(LLMProvider):
             Exception: Si falla la generación
         """
         try:
-            # Validar inputs
-            self._validate_messages(messages)
-            self._validate_temperature(temperature)
+            # Convertir mensajes al formato OpenAI primero (convierte role='tool' a 'user')
+            formatted_messages = self._format_messages_for_groq(messages)
             
-            # Convertir mensajes al formato OpenAI (compatible con Groq)
-            formatted_messages = [
-                {"role": msg.role, "content": msg.content}
-                for msg in messages
-            ]
+            # Validar temperatura
+            self._validate_temperature(temperature)
             
             # Preparar parámetros
             params = {
@@ -103,8 +99,8 @@ class GroqAdapter(LLMProvider):
             
             # Function calling (Groq usa formato OpenAI)
             if tools:
-                # Groq espera el mismo formato que OpenAI
-                params["tools"] = tools
+                # Convertir tools al formato OpenAI/Groq
+                params["tools"] = self._convert_tools_to_groq_format(tools)
                 params["tool_choice"] = "auto"  # Permite al LLM decidir cuándo usar tools
                 logger.debug("Function calling enabled with %d tools", len(tools))
             
@@ -214,3 +210,98 @@ class GroqAdapter(LLMProvider):
         
         self.model = model
         logger.info("Groq model changed to: %s", model)
+    
+    def _convert_tools_to_groq_format(self, mcp_tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Convierte tools del formato MCP al formato Groq/OpenAI.
+        
+        MCP format:
+        {
+            "name": "tool_name",
+            "description": "...",
+            "parameters": {...}
+        }
+        
+        Groq format (OpenAI compatible):
+        {
+            "type": "function",
+            "function": {
+                "name": "tool_name",
+                "description": "...",
+                "parameters": {...}
+            }
+        }
+        
+        Args:
+            mcp_tools: Lista de tools en formato MCP
+        
+        Returns:
+            Lista de tools en formato Groq
+        """
+        groq_tools = []
+        
+        logger.debug("Converting %d MCP tools to Groq format...", len(mcp_tools))
+        
+        for i, tool in enumerate(mcp_tools):
+            logger.debug("Tool %d before conversion: %s", i, tool)
+            
+            groq_tool = {
+                "type": "function",
+                "function": {
+                    "name": tool.get("name", ""),
+                    "description": tool.get("description", ""),
+                    "parameters": tool.get("parameters", {})
+                }
+            }
+            groq_tools.append(groq_tool)
+            
+            logger.debug("Tool %d after conversion: %s", i, groq_tool)
+        
+        logger.info("Successfully converted %d MCP tools to Groq format", len(groq_tools))
+        
+        return groq_tools
+    
+    def _format_messages_for_groq(self, messages: List[LLMMessage]) -> List[Dict[str, Any]]:
+        """
+        Formatea mensajes para Groq, manejando roles especiales.
+        
+        Groq acepta roles: system, user, assistant
+        - Los tool results se guardan como 'system' con metadata
+        - Los convertimos a 'user' con prefijo descriptivo
+        
+        Args:
+            messages: Lista de mensajes LLM
+        
+        Returns:
+            Lista de mensajes formateados para Groq
+        """
+        formatted = []
+        
+        for msg in messages:
+            if msg.role == "tool":
+                # Legacy support: convertir role="tool" a role="user" con prefijo
+                formatted.append({
+                    "role": "user",
+                    "content": f"[Resultado de herramienta]\n{msg.content}"
+                })
+            elif msg.role == "system" and "[Tool Result:" in msg.content:
+                # Tool result guardado como 'system' - convertir a 'user'
+                formatted.append({
+                    "role": "user",
+                    "content": msg.content
+                })
+            elif msg.role == "system":
+                # System messages normales
+                formatted.append({
+                    "role": "system",
+                    "content": msg.content
+                })
+            else:
+                # user, assistant
+                formatted.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+        
+        logger.debug("Formatted %d messages for Groq", len(formatted))
+        return formatted

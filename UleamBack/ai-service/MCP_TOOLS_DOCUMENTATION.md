@@ -497,6 +497,5 @@ Para que los tools funcionen, estos servicios deben estar corriendo:
 
 ---
 
-**Autor**: Sistema de Reservas ULEAM  
-**Fecha**: 25 de enero de 2026  
+
 **Versión**: 1.0.0
