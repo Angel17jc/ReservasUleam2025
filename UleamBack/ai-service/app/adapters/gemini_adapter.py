@@ -19,6 +19,8 @@ from google.genai import types
 from typing import List, Dict, Any, Optional
 import logging
 import base64
+import asyncio
+import re
 
 from .base import LLMProvider, LLMMessage, LLMResponse
 
@@ -97,14 +99,17 @@ class GeminiAdapter(LLMProvider):
                 response_mime_type="text/plain"
             )
             
-            # Generar respuesta con la nueva API
+            # Generar respuesta con la nueva API (con reintentos on-rate-limit)
             logger.debug("Generating response with Gemini (temp=%s, model=%s)", 
                         temperature, self.TEXT_MODEL)
-            
-            response = self._client.models.generate_content(
-                model=self.TEXT_MODEL,
-                contents=contents,
-                config=config
+
+            # Ejecutar llamada con reintentos para manejar 429/RESOURCE_EXHAUSTED
+            response = await self._call_with_retry(
+                lambda: self._client.models.generate_content(
+                    model=self.TEXT_MODEL,
+                    contents=contents,
+                    config=config
+                )
             )
             
             # Extraer respuesta
@@ -205,10 +210,12 @@ class GeminiAdapter(LLMProvider):
             logger.debug("Sending vision request to Gemini...")
             
             # Generar respuesta con visión
-            response = self._client.models.generate_content(
-                model=self.VISION_MODEL,
-                contents=contents,
-                config=config
+            response = await self._call_with_retry(
+                lambda: self._client.models.generate_content(
+                    model=self.VISION_MODEL,
+                    contents=contents,
+                    config=config
+                )
             )
             
             # Extraer texto de la respuesta
@@ -225,6 +232,55 @@ class GeminiAdapter(LLMProvider):
         except Exception as e:
             logger.error("Error analyzing image with Gemini Vision: %s", e, exc_info=True)
             raise RuntimeError(f"Gemini Vision API error: {str(e)}") from e
+
+    async def _call_with_retry(self, call_func, max_attempts: int = 5, initial_backoff: float = 1.0):
+        """
+        Ejecuta una llamada bloqueante en un thread con reintentos exponenciales
+        cuando se detecta rate limit / RESOURCE_EXHAUSTED (429).
+
+        - `call_func` debe ser una función sin argumentos que ejecute la llamada sincrónica.
+        - Respeta `retryDelay` si aparece en el mensaje de error (ej: 'retryDelay': '17s').
+        """
+        attempt = 1
+        backoff = initial_backoff
+        last_exc = None
+
+        while attempt <= max_attempts:
+            try:
+                # Ejecutar la llamada en un thread para no bloquear el event loop
+                response = await asyncio.to_thread(call_func)
+                return response
+
+            except Exception as e:
+                last_exc = e
+                msg = str(e)
+
+                # Detectar si es un error por cuota/429/RESOURCE_EXHAUSTED
+                if 'RESOURCE_EXHAUSTED' in msg or '429' in msg or 'quota' in msg.lower() or 'Quota' in msg:
+                    # Intentar extraer retry delay (ej. 'Please retry in 17.503270771s.')
+                    m = re.search(r"(\d+(?:\.\d+)?)s", msg)
+                    if m:
+                        delay = float(m.group(1))
+                    else:
+                        delay = backoff
+
+                    logger.warning(
+                        "Gemini rate limit detected (attempt %d/%d). Retrying in %.1fs...",
+                        attempt, max_attempts, delay
+                    )
+
+                    await asyncio.sleep(delay)
+                    backoff = min(backoff * 2, 60.0)
+                    attempt += 1
+                    continue
+
+                # Si no es un rate-limit, re-lanzar
+                logger.debug("Non rate-limit Gemini error: %s", msg)
+                raise
+
+        # Si agotamos intentos, lanzar la última excepción
+        logger.error("Gemini: agotados reintentos después de %d intentos", max_attempts)
+        raise last_exc
     
     def get_available_models(self) -> List[str]:
         """Lista modelos disponibles."""

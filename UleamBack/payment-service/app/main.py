@@ -26,6 +26,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from .config import settings
 from .database import check_database_connection, get_db_stats
 from .routes import payments_router, webhooks_router, partners_router, partners_webhook_router
+from .routes.equipo_a_webhook import router as equipo_a_router
 from .clients.auth_client import init_auth_client, get_auth_client
 from .clients.rest_client import init_rest_client, get_rest_client
 from .clients.websocket_client import init_websocket_client, get_websocket_client
@@ -197,6 +198,7 @@ app.include_router(payments_router, prefix=f"/{settings.API_PREFIX}")
 app.include_router(webhooks_router, prefix=f"/{settings.API_PREFIX}")
 app.include_router(partners_router, prefix=f"/{settings.API_PREFIX}")
 app.include_router(partners_webhook_router, prefix=f"/{settings.API_PREFIX}")  # Webhooks INBOUND
+app.include_router(equipo_a_router, prefix=f"/{settings.API_PREFIX}")  # Equipo A Integration
 
 
 # ===== Root Endpoints =====

@@ -1,0 +1,11 @@
+# Test 1: Health check
+Invoke-RestMethod http://localhost:8001/api/v1/health
+
+# Test 2: Status de Equipo A
+Invoke-RestMethod http://localhost:8001/api/v1/equipo-a/status
+
+#
+python tests_para_equipo_a.py --all
+
+# Test 3: Swagger docs
+start http://localhost:8001/docs

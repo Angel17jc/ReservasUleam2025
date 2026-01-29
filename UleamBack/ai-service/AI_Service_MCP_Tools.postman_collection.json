@@ -1,0 +1,923 @@
+{
+	"info": {
+		"_postman_id": "uleam-ai-mcp-tools-2026",
+		"name": "ULEAM AI Service - MCP Tools Complete Testing",
+		"description": "## 🤖 Colección Completa de Pruebas - AI Service\n\n**Sistema:** ULEAM - Reservas de Espacios\n**Fecha:** 28 de enero de 2026\n**Puerto:** 5000\n**Base URL:** http://localhost:5000/api/v1\n\n### 📚 MCP Tools Disponibles (5)\n\n#### 🔍 CONSULTA (2 tools)\n1. **buscar_espacios** - Buscar espacios disponibles por capacidad, tipo, nombre\n2. **ver_reservas** - Consultar reservas por usuario, espacio, estado\n\n#### ⚡ ACCIÓN (2 tools)\n3. **crear_reserva** - Crear nueva reserva de espacio\n4. **registrar_usuario** - Registrar nuevo usuario en el sistema\n\n#### 📊 REPORTE (1 tool)\n5. **estadisticas_reservas** - Generar estadísticas y reportes de uso\n\n### 🎯 Cómo Usar\n\n1. **Configurar Variables:**\n   - `base_url`: http://localhost:5000 (ya configurado)\n   - `usuario_id`: 1 (o tu ID real)\n   - `espacio_id`: 1 (ID existente)\n\n2. **Ejecutar en Orden:**\n   - Health Checks → Providers → Tools CONSULTA → Tools ACCIÓN → Tools REPORTE\n\n3. **Conversaciones:**\n   - El `conversation_id` se guarda automáticamente\n   - Usa el mismo ID para continuar conversaciones\n\n### ✨ Características\n\n- ✅ Auto-save de conversation_id\n- ✅ Scripts de test que muestran tools ejecutados\n- ✅ Ejemplos con lenguaje natural\n- ✅ Tests para cada provider (Gemini, Groq, OpenAI)\n- ✅ Escenarios multi-tool complejos\n- ✅ Procesamiento de imágenes (Gemini Vision)\n\n### 🔑 Providers\n\n- **Gemini** (Google): Rápido, económico, soporta Vision\n- **Groq**: MUY rápido (LPU), gratis\n- **OpenAI**: Balanceado, requiere API key de pago",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "uleam-2026"
+	},
+	"item": [
+		{
+			"name": "🏥 Health Checks",
+			"item": [
+				{
+					"name": "Health Basic",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Service is healthy', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('healthy');",
+									"    pm.expect(jsonData.service).to.eql('ai-service');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/health",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "health"]
+						},
+						"description": "✅ Verifica que el servicio esté corriendo.\n\n**Respuesta esperada:**\n```json\n{\n  \"status\": \"healthy\",\n  \"service\": \"ai-service\",\n  \"version\": \"1.0.0\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Health Detailed",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Has database and providers info', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('database_status');",
+									"    pm.expect(jsonData).to.have.property('llm_providers');",
+									"});",
+									"",
+									"var jsonData = pm.response.json();",
+									"if (jsonData.mcp_tools) {",
+									"    console.log('🛠️ MCP Tools registered: ' + jsonData.mcp_tools.registered);",
+									"    console.log('📋 Tool names: ' + jsonData.mcp_tools.tool_names.join(', '));",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health/detailed",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "health", "detailed"]
+						},
+						"description": "🔍 Health check detallado incluyendo:\n- Estado de base de datos\n- Configuración de LLM providers\n- MCP tools registrados\n\n**Muestra:**\n- ✅ Gemini configured\n- ✅ Groq configured\n- ⚠️ OpenAI not_configured\n- 🛠️ 5 MCP Tools: buscar_espacios, ver_reservas, crear_reserva, registrar_usuario, estadisticas_reservas"
+					},
+					"response": []
+				}
+			],
+			"description": "Verificación del estado del servicio"
+		},
+		{
+			"name": "🎛️ Chat Management",
+			"item": [
+				{
+					"name": "Get Providers",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"var jsonData = pm.response.json();",
+									"console.log('📡 Available providers:');",
+									"jsonData.providers.forEach(function(provider) {",
+									"    var icon = provider.is_configured ? '✅' : '❌';",
+									"    console.log(icon + ' ' + provider.name + ' - ' + provider.model);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/providers",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "providers"]
+						},
+						"description": "📡 Lista todos los providers de IA disponibles.\n\n**Providers:**\n- Gemini (gemini-1.5-flash)\n- Groq (llama-3.3-70b-versatile)\n- OpenAI (gpt-4o-mini)\n\n**Información por provider:**\n- name, model\n- is_configured\n- supports_function_calling\n- supports_vision"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Conversations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/conversations/{{usuario_id}}?limit=50&offset=0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "conversations", "{{usuario_id}}"],
+							"query": [
+								{"key": "limit", "value": "50"},
+								{"key": "offset", "value": "0"}
+							]
+						},
+						"description": "📜 Obtiene todas las conversaciones de un usuario.\n\n**Parámetros:**\n- usuario_id: ID del usuario (variable)\n- limit: Máximo de resultados (default 50)\n- offset: Para paginación (default 0)\n\n**Respuesta:**\n```json\n{\n  \"conversations\": [...],\n  \"total\": 10\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Conversation Messages",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/conversations/{{conversation_id}}/messages",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "conversations", "{{conversation_id}}", "messages"]
+						},
+						"description": "💬 Obtiene todos los mensajes de una conversación.\n\n**Requiere:** conversation_id (guardado automáticamente)\n\n**Respuesta incluye:**\n- ID de conversación\n- Título\n- Todos los mensajes (user + assistant)\n- Fecha de creación/actualización"
+					},
+					"response": []
+				}
+			],
+			"description": "Gestión de conversaciones y providers"
+		},
+		{
+			"name": "🔍 CONSULTA - Buscar Espacios",
+			"item": [
+				{
+					"name": "Buscar Espacios - Todos disponibles",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"var jsonData = pm.response.json();",
+									"if (jsonData.conversation_id) {",
+									"    pm.environment.set('conversation_id', jsonData.conversation_id);",
+									"    console.log('✅ conversation_id: ' + jsonData.conversation_id);",
+									"}",
+									"",
+									"if (jsonData.tools_executed && jsonData.tools_executed.length > 0) {",
+									"    console.log('🛠️ Tools: ' + jsonData.tools_executed.map(t => t.tool_name).join(', '));",
+									"    jsonData.tools_executed.forEach(function(tool) {",
+									"        if (tool.result && tool.result.data) {",
+									"            console.log('📊 Espacios encontrados: ' + tool.result.data.length);",
+									"        }",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Muéstrame todos los espacios disponibles\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔍 **Tool:** buscar_espacios\n\nBusca TODOS los espacios disponibles (sin filtros).\n\n**El LLM ejecuta:**\n```python\nbuscar_espacios(disponible=True)\n```\n\n**Retorna:**\n- Lista de espacios con ID, nombre, capacidad, tipo, estado\n- El LLM presenta los resultados en formato legible"
+					},
+					"response": []
+				},
+				{
+					"name": "Buscar Espacios - Por capacidad mínima",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Necesito un espacio para 50 personas\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔍 **Tool:** buscar_espacios\n**Filtro:** capacidad_min=50\n\nEl LLM detecta \"50 personas\" y ejecuta:\n```python\nbuscar_espacios(capacidad_min=50, disponible=True)\n```\n\n**Parámetro:**\n- `capacidad_min` (integer): Capacidad mínima requerida"
+					},
+					"response": []
+				},
+				{
+					"name": "Buscar Espacios - Por tipo",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Busco un laboratorio disponible\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔍 **Tool:** buscar_espacios\n**Filtro:** tipo_espacio=laboratorio\n\n**Tipos disponibles:**\n- aula\n- laboratorio\n- auditorio\n- sala_reuniones\n- espacio_deportivo\n\nEl LLM ejecuta:\n```python\nbuscar_espacios(tipo_espacio='laboratorio', disponible=True)\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Buscar Espacios - Por nombre",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Hay algún auditorio llamado magna?\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔍 **Tool:** buscar_espacios\n**Filtro:** nombre contiene 'magna'\n\nBúsqueda parcial (LIKE) por nombre del espacio.\n\nEl LLM ejecuta:\n```python\nbuscar_espacios(nombre='magna', disponible=True)\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Buscar Espacios - Múltiples filtros",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Necesito un auditorio para 100 personas\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔍 **Tool:** buscar_espacios\n**Filtros combinados:**\n- tipo_espacio=auditorio\n- capacidad_min=100\n\nEl LLM ejecuta:\n```python\nbuscar_espacios(\n    tipo_espacio='auditorio',\n    capacidad_min=100,\n    disponible=True\n)\n```"
+					},
+					"response": []
+				}
+			],
+			"description": "Tool: buscar_espacios - Buscar espacios con filtros"
+		},
+		{
+			"name": "🔍 CONSULTA - Ver Reservas",
+			"item": [
+				{
+					"name": "Ver Reservas - Del usuario actual",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Muéstrame mis reservas\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔍 **Tool:** ver_reservas\n\nEl LLM usa el `usuario_id` del contexto para consultar las reservas del usuario actual.\n\n**El LLM ejecuta:**\n```python\nver_reservas(usuario_id={{usuario_id}})\n```\n\n**Retorna:**\n- Lista de reservas con: usuario, espacio, fecha, horario, estado, propósito"
+					},
+					"response": []
+				},
+				{
+					"name": "Ver Reservas - Por estado",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Cuáles son mis reservas confirmadas?\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔍 **Tool:** ver_reservas\n**Filtros:** usuario_id + estado_id=2\n\n**Estados disponibles:**\n- 1: Pendiente ⏳\n- 2: Confirmada ✅\n- 3: Cancelada ❌\n- 4: Completada 🏁\n\nEl LLM ejecuta:\n```python\nver_reservas(usuario_id={{usuario_id}}, estado_id=2)\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Ver Reservas - De un espacio",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Qué reservas tiene el espacio ID 1?\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔍 **Tool:** ver_reservas\n**Filtro:** espacio_id=1\n\nConsulta todas las reservas (cualquier usuario) de un espacio específico.\n\nEl LLM ejecuta:\n```python\nver_reservas(espacio_id=1)\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Ver Reservas - Pendientes",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Tengo reservas pendientes?\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔍 **Tool:** ver_reservas\n**Filtros:** usuario_id + estado_id=1 (pendiente)\n\nConsulta reservas que aún están pendientes de confirmación.\n\nEl LLM ejecuta:\n```python\nver_reservas(usuario_id={{usuario_id}}, estado_id=1)\n```"
+					},
+					"response": []
+				}
+			],
+			"description": "Tool: ver_reservas - Consultar reservas existentes"
+		},
+		{
+			"name": "⚡ ACCION - Crear Reserva",
+			"item": [
+				{
+					"name": "Crear Reserva - Completa",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Quiero reservar el espacio ID 1 para el 30 de enero de 2026 desde las 14:00 hasta las 16:00 para una clase de programación\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "⚡ **Tool:** crear_reserva\n**Categoría:** ACCIÓN (modifica datos)\n\nCrea una nueva reserva con todos los parámetros.\n\n**Parámetros requeridos:**\n- usuario_id: ID del usuario (del contexto)\n- espacio_id: ID del espacio\n- fecha_reserva: YYYY-MM-DD\n- hora_inicio: HH:MM\n- hora_fin: HH:MM\n- proposito: Descripción\n\nEl LLM ejecuta:\n```python\ncrear_reserva(\n    usuario_id={{usuario_id}},\n    espacio_id=1,\n    fecha_reserva='2026-01-30',\n    hora_inicio='14:00',\n    hora_fin='16:00',\n    proposito='Clase de programación'\n)\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Reserva - Conversacional",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Necesito reservar un auditorio para mañana por la tarde para una conferencia\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "⚡ **Flujo multi-tool conversacional:**\n\n1. El LLM ejecuta `buscar_espacios(tipo_espacio='auditorio')`\n2. Muestra opciones disponibles\n3. Pide al usuario que especifique:\n   - ¿Qué auditorio?\n   - ¿Hora exacta?\n4. Una vez tiene todo, ejecuta `crear_reserva(...)`\n\n**Demuestra:** Conversación natural de múltiples pasos."
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Reserva - Con fecha relativa",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Reserva el laboratorio 1 para mañana de 10 a 12 para taller de robótica\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "⚡ **Tool:** crear_reserva\n\nEl LLM es capaz de interpretar fechas relativas:\n- \"mañana\" → calcula la fecha (hoy es 28 ene 2026)\n- \"de 10 a 12\" → 10:00 y 12:00\n\n**El LLM convierte:**\n- mañana → 2026-01-29\n- de 10 a 12 → 10:00 - 12:00"
+					},
+					"response": []
+				}
+			],
+			"description": "Tool: crear_reserva - Crear nueva reserva"
+		},
+		{
+			"name": "⚡ ACCION - Registrar Usuario",
+			"item": [
+				{
+					"name": "Registrar Usuario - Estudiante",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Registra un nuevo usuario: Juan Pérez, email juan.perez@uleam.edu.ec, contraseña MiPassword123, tipo estudiante\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "⚡ **Tool:** registrar_usuario\n**Tipo:** Estudiante (tipo_usuario_id=3)\n\n**Parámetros requeridos:**\n- nombre: Nombre\n- apellido: Apellido\n- email: Email único\n- password: Mínimo 8 caracteres\n- tipo_usuario_id: 3 (estudiante, default)\n\nEl LLM ejecuta:\n```python\nregistrar_usuario(\n    nombre='Juan',\n    apellido='Pérez',\n    email='juan.perez@uleam.edu.ec',\n    password='MiPassword123',\n    tipo_usuario_id=3\n)\n```\n\n**⚠️ La contraseña NO se muestra en la respuesta (seguridad)**"
+					},
+					"response": []
+				},
+				{
+					"name": "Registrar Usuario - Docente",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Registra a la docente María González, email maria.gonzalez@uleam.edu.ec, contraseña Docente2026\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "⚡ **Tool:** registrar_usuario\n**Tipo:** Docente (tipo_usuario_id=2)\n\nEl LLM infiere el tipo basándose en \"docente\" en el mensaje.\n\n**Tipos de usuario:**\n- 1: Admin 👑\n- 2: Docente 👨‍🏫\n- 3: Estudiante 🎓 (default)\n- 4: Externo 🚶"
+					},
+					"response": []
+				},
+				{
+					"name": "Registrar Usuario - Admin",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Registra un administrador: Carlos Ruiz, email carlos.admin@uleam.edu.ec, contraseña Admin2026Secure\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "⚡ **Tool:** registrar_usuario\n**Tipo:** Admin (tipo_usuario_id=1)\n\nEl LLM detecta \"administrador\" y asigna tipo 1.\n\n**Permisos:**\n- Admin: Todos los permisos\n- Docente: Crear/ver reservas\n- Estudiante: Ver/crear propias\n- Externo: Limitado"
+					},
+					"response": []
+				}
+			],
+			"description": "Tool: registrar_usuario - Registrar nuevo usuario"
+		},
+		{
+			"name": "📊 REPORTE - Estadísticas",
+			"item": [
+				{
+					"name": "Estadísticas - Generales 30 días",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Dame un reporte de uso de espacios de los últimos 30 días\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "📊 **Tool:** estadisticas_reservas\n\nGenera reporte estadístico de uso de espacios.\n\n**Parámetros:**\n- espacio_id (opcional)\n- dias: 30 (default)\n- incluir_canceladas: false (default)\n\nEl LLM ejecuta:\n```python\nestadisticas_reservas(dias=30, incluir_canceladas=False)\n```\n\n**Retorna:**\n- Total de reservas\n- Espacios más utilizados 🏆\n- Distribución por estado\n- Promedio por día\n- Horarios pico ⏰"
+					},
+					"response": []
+				},
+				{
+					"name": "Estadísticas - Espacio específico",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Cuántas veces se ha usado el espacio ID 1 en los últimos 7 días?\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "📊 **Tool:** estadisticas_reservas\n**Filtros:** espacio_id=1, dias=7\n\nEstadísticas específicas de UN espacio en período corto.\n\nEl LLM ejecuta:\n```python\nestadisticas_reservas(\n    espacio_id=1,\n    dias=7,\n    incluir_canceladas=False\n)\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Estadísticas - Con canceladas",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Dame estadísticas de los últimos 60 días incluyendo las reservas canceladas\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "📊 **Tool:** estadisticas_reservas\n**Filtros:** dias=60, incluir_canceladas=true\n\nReporte completo incluyendo reservas canceladas.\n\n**Útil para:**\n- Análisis de patrones de cancelación\n- Detectar problemas\n- Optimización de recursos\n\nEl LLM ejecuta:\n```python\nestadisticas_reservas(\n    dias=60,\n    incluir_canceladas=True\n)\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Estadísticas - Análisis mensual",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"¿Cuál es el espacio más popular del último mes?\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "📊 **Tool:** estadisticas_reservas\n\nEl LLM ejecuta estadísticas y analiza los resultados para responder \"el más popular\".\n\n**El LLM:**\n1. Ejecuta `estadisticas_reservas(dias=30)`\n2. Analiza campo \"espacios_mas_usados\"\n3. Identifica el #1\n4. Responde en lenguaje natural"
+					},
+					"response": []
+				}
+			],
+			"description": "Tool: estadisticas_reservas - Reportes y análisis"
+		},
+		{
+			"name": "🎭 Escenarios Multi-Tool",
+			"item": [
+				{
+					"name": "Escenario 1: Buscar + Reservar (Paso 1)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Hola, necesito ayuda para organizar un evento\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🎭 **Escenario conversacional completo**\n\n**PASO 1:** Usuario inicia conversación general.\n\n**El LLM:**\n- Saluda\n- Pregunta qué tipo de evento\n- Pregunta cuántas personas\n- NO ejecuta tools todavía (necesita más info)\n\n**⚠️ Guarda el `conversation_id` de la respuesta para continuar**"
+					},
+					"response": []
+				},
+				{
+					"name": "Escenario 1: Buscar + Reservar (Paso 2)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Una conferencia para 100 personas el próximo viernes\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": {{conversation_id}},\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🎭 **PASO 2:** Usuario proporciona detalles.\n\n**⚠️ USA el `conversation_id` del paso anterior**\n\n**El LLM:**\n1. Recuerda el contexto anterior\n2. Ejecuta `buscar_espacios(tipo_espacio='auditorio', capacidad_min=100)`\n3. Muestra opciones\n4. Pregunta cuál prefiere y qué horario"
+					},
+					"response": []
+				},
+				{
+					"name": "Escenario 1: Buscar + Reservar (Paso 3)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"El auditorio magna de 10 a 12 del día\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": {{conversation_id}},\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🎭 **PASO 3:** Usuario confirma detalles finales.\n\n**El LLM:**\n1. Tiene toda la información\n2. Ejecuta `crear_reserva(...)`\n3. Confirma la reserva creada\n4. Proporciona ID de reserva\n\n**Demuestra:** Flujo natural de múltiples pasos con contexto."
+					},
+					"response": []
+				},
+				{
+					"name": "Escenario 2: Consulta + Análisis",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Muéstrame mis reservas y dime cuál es el espacio que más he usado\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🎭 **Escenario de análisis inteligente**\n\n**El LLM:**\n1. Ejecuta `ver_reservas(usuario_id={{usuario_id}})`\n2. Analiza los resultados\n3. Cuenta ocurrencias por espacio\n4. Identifica el más frecuente\n5. Responde en lenguaje natural\n\n**Demuestra:** Capacidad de análisis de datos del LLM."
+					},
+					"response": []
+				},
+				{
+					"name": "Escenario 3: Reporte comparativo",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Compara el uso del auditorio con los laboratorios en el último mes\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🎭 **Análisis comparativo complejo**\n\n**El LLM puede:**\n1. Ejecutar `buscar_espacios(tipo_espacio='auditorio')`\n2. Ejecutar `buscar_espacios(tipo_espacio='laboratorio')`\n3. Para cada uno, ejecutar `estadisticas_reservas(espacio_id=X)`\n4. Comparar resultados\n5. Presentar análisis comparativo\n\n**Demuestra:** Razonamiento complejo con múltiples tools."
+					},
+					"response": []
+				}
+			],
+			"description": "Escenarios que combinan múltiples tools"
+		},
+		{
+			"name": "🖼️ Image Processing (Gemini Vision)",
+			"item": [
+				{
+					"name": "Chat con Imagen - General",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": []},
+								{"key": "content", "value": "¿Qué espacio es este? ¿Es adecuado para clases?", "type": "text"},
+								{"key": "usuario_id", "value": "{{usuario_id}}", "type": "text"},
+								{"key": "temperature", "value": "0.7", "type": "text"},
+								{"key": "analysis_type", "value": "general", "type": "text"}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/image/chat",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image", "chat"]
+						},
+						"description": "🖼️ **Gemini Vision - Chat con imagen**\n\n**Sube una imagen de un espacio y pregunta sobre ella.**\n\n**Formatos:** JPEG, PNG, WEBP, GIF, BMP (max 20MB)\n\n**El LLM analiza la imagen y responde:**\n- Tipo de espacio\n- Capacidad estimada\n- Características\n- Adecuación para el uso propuesto\n\n**⚠️ Solo funciona con provider=gemini**"
+					},
+					"response": []
+				},
+				{
+					"name": "Analizar Imagen - Identificar espacio",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": []},
+								{"key": "analysis_type", "value": "space", "type": "text"},
+								{"key": "detail_level", "value": "comprehensive", "type": "text"}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/image/analyze",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image", "analyze"]
+						},
+						"description": "🖼️ **Análisis especializado de espacios**\n\n**analysis_type:** space\n**detail_level:** comprehensive\n\n**Retorna:**\n- Tipo de espacio identificado\n- Capacidad estimada\n- Características observadas\n- Recomendaciones de uso\n- Equipamiento visible"
+					},
+					"response": []
+				},
+				{
+					"name": "OCR - Extraer texto",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": []}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/image/ocr",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image", "ocr"]
+						},
+						"description": "🖼️ **OCR - Extracción de texto**\n\nExtrae texto de:\n- Documentos escaneados\n- Carteles\n- Letreros\n- Formularios\n\n**Retorna:**\n- Texto extraído completo\n- Estructura preservada\n- Confianza alta"
+					},
+					"response": []
+				},
+				{
+					"name": "Identificar Espacio (especializado)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": []}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/image/identify-space",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image", "identify-space"]
+						},
+						"description": "🖼️ **Identificación especializada de espacios**\n\nPrompt optimizado para identificar espacios educativos:\n- Aulas\n- Laboratorios\n- Auditorios\n- Salas de reuniones\n- Espacios deportivos\n\n**Retorna:**\n- space_type\n- estimated_capacity\n- features\n- recommendations"
+					},
+					"response": []
+				},
+				{
+					"name": "Analizar Documento",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": []}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/image/analyze-document",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image", "analyze-document"]
+						},
+						"description": "🖼️ **Análisis de documentos**\n\nAnaliza documentos administrativos:\n- Formularios de reserva\n- Solicitudes\n- Cartas\n- Reportes\n\n**Retorna:**\n- document_type\n- extracted_fields\n- key_information\n- summary"
+					},
+					"response": []
+				}
+			],
+			"description": "Procesamiento de imágenes con Gemini Vision"
+		},
+		{
+			"name": "🔄 Different Providers",
+			"item": [
+				{
+					"name": "Test Gemini (Google)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Hola, ¿cómo funciona el sistema de reservas?\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔄 **Provider:** Gemini (Google)\n**Model:** gemini-1.5-flash\n\n**Características:**\n✅ Rápido y económico\n✅ Function calling\n✅ Vision (imágenes)\n✅ Context: 1M tokens\n✅ Gratis en tier free\n\n**Ideal para:**\n- Uso general\n- Procesamiento de imágenes\n- Conversaciones largas"
+					},
+					"response": []
+				},
+				{
+					"name": "Test Groq (LPU)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Hola, ¿cómo funciona el sistema de reservas?\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"groq\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔄 **Provider:** Groq\n**Model:** llama-3.3-70b-versatile\n\n**Características:**\n✅ MUY RÁPIDO (LPU)\n✅ Function calling\n❌ NO Vision\n✅ Gratis en tier free\n✅ Latencia ultra-baja\n\n**Ideal para:**\n- Respuestas instantáneas\n- Chatbots de producción\n- Alto volumen de requests"
+					},
+					"response": []
+				},
+				{
+					"name": "Test OpenAI (GPT)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Hola, ¿cómo funciona el sistema de reservas?\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"openai\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔄 **Provider:** OpenAI\n**Model:** gpt-4o-mini\n\n**Características:**\n✅ Alta calidad\n✅ Function calling\n✅ Vision\n⚠️ Requiere API key de pago\n✅ Confiable\n\n**Ideal para:**\n- Tareas complejas\n- Máxima calidad\n- Producción enterprise"
+					},
+					"response": []
+				},
+				{
+					"name": "Comparar Providers - Mismo mensaje",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Necesito un espacio para 30 personas mañana de 10 a 12\",\n  \"usuario_id\": {{usuario_id}},\n  \"conversation_id\": null,\n  \"provider\": \"gemini\",\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chat/message",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chat", "message"]
+						},
+						"description": "🔄 **Experimento:** Mismo mensaje, diferentes providers\n\n**Instrucciones:**\n1. Ejecuta con provider=\"gemini\"\n2. Ejecuta con provider=\"groq\"\n3. Ejecuta con provider=\"openai\"\n4. Compara:\n   - Velocidad de respuesta\n   - Calidad del análisis\n   - Tools ejecutados\n   - Tokens usados\n\n**⚠️ Cambia el provider manualmente en cada prueba**"
+					},
+					"response": []
+				}
+			],
+			"description": "Comparar diferentes providers de IA"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// No pre-request scripts needed"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-save conversation_id from responses",
+					"if (pm.response.code === 200) {",
+					"    try {",
+					"        var jsonData = pm.response.json();",
+					"        ",
+					"        // Save conversation_id",
+					"        if (jsonData.conversation_id) {",
+					"            pm.environment.set('conversation_id', jsonData.conversation_id);",
+					"            console.log('✅ conversation_id saved: ' + jsonData.conversation_id);",
+					"        }",
+					"        ",
+					"        // Show tools executed",
+					"        if (jsonData.tools_executed && jsonData.tools_executed.length > 0) {",
+					"            console.log('\\n🛠️ Tools executed:');",
+					"            jsonData.tools_executed.forEach(function(tool) {",
+					"                console.log('  • ' + tool.tool_name + ' (' + tool.category + ')');",
+					"                if (tool.result && tool.result.message) {",
+					"                    console.log('    ➜ ' + tool.result.message);",
+					"                }",
+					"            });",
+					"        }",
+					"        ",
+					"        // Show tokens used",
+					"        if (jsonData.tokens_used) {",
+					"            console.log('\\n📊 Tokens: ' + jsonData.tokens_used.total_tokens);",
+					"        }",
+					"        ",
+					"        // Show model/provider",
+					"        if (jsonData.provider && jsonData.model) {",
+					"            console.log('🤖 Provider: ' + jsonData.provider + ' (' + jsonData.model + ')');",
+					"        }",
+					"    } catch (e) {",
+					"        console.log('⚠️ Could not parse response: ' + e);",
+					"    }",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "usuario_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "espacio_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "conversation_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

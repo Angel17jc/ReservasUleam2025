@@ -7,6 +7,9 @@ from ..models import reserva as reserva_model
 from ..utils.dependencies import get_current_user
 from .. import models
 from ..services.notification_service import schedule_emit_webhook
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/reservas", tags=["reservas"])
 
@@ -196,6 +199,9 @@ def update_reserva_estado(reserva_id: int, data: ReservaEstadoUpdate, db: Sessio
                 pendientes_rechazadas.append(other)
                 db.add(other)
 
+    # Guardar estado anterior para comparar
+    estado_anterior_nombre = r.estado.nombre if r.estado else None
+    
     r.estado_id = estado.id
     db.add(r)
     db.commit()
