@@ -5,6 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel, EmailStr
 from datetime import timedelta, date, time as time_cls
 from pathlib import Path
+import os
 import secrets
 import time
 
@@ -33,9 +34,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Origenes permitidos: configurables por entorno (CORS_ORIGINS separado por comas)
+_cors_env = os.getenv("CORS_ORIGINS", "http://localhost:8084,http://localhost:5173")
+ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

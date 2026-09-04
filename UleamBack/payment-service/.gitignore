@@ -90,3 +90,12 @@ celerybeat.pid
 .venv
 pip-log.txt
 pip-delete-this-directory.txt
+
+# ===== Credenciales B2B y de proveedores de pago (NUNCA versionar) =====
+*_api_key.txt
+*_secret_key.txt
+*credentials*.json
+equipo_*_credentials*.json
+*.pem
+*.key
+stripe_*.json

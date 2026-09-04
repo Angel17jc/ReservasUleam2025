@@ -137,7 +137,7 @@ handleNotificacion(@Body() data: any) {
 
 **Valor Compartido**:
 ```bash
-SECRET_KEY=mi-secreto-auth-service-super-seguro-2025
+SECRET_KEY=<JWT_SECRET-definido-en-.env>
 ```
 
 **Servicios Verificados**:
@@ -252,7 +252,7 @@ pytest tests/ -v --cov=app --cov-report=html
 
 ### Pilar 1 (Auth Service)
 - ✅ Endpoint `/api/v1/auth/validate` funcional
-- ✅ JWT_SECRET configurado: `mi-secreto-auth-service-super-seguro-2025`
+- ✅ JWT_SECRET configurado: `<JWT_SECRET-definido-en-.env>`
 - ✅ Puerto 9000 activo
 - ✅ Algoritmo HS256
 

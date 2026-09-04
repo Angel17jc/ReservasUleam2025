@@ -1,0 +1,30 @@
+# ===== Secretos (GROQ_API_KEY / GEMINI_API_KEY) =====
+.env
+.env.*
+*.env
+!.env.example
+*.pem
+*.key
+*secret*.txt
+*api_key*.txt
+*credentials*.json
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ===== Archivos subidos al chat multimodal (LOPDP) =====
+uploads/
+ai_uploads/
+
+# ===== Logs =====
+ai_service.log
+*.log
+logs/

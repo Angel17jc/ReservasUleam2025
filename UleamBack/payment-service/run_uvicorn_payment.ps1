@@ -2,7 +2,8 @@
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $scriptDir
 Remove-Item Env:SECRET_KEY -ErrorAction SilentlyContinue
-$env:SECRET_KEY = 'mi-secreto-auth-service-super-seguro-2025'
+# El secreto se toma del entorno; no se incrusta en el repositorio.
+if (-not $env:SECRET_KEY) { throw "Define SECRET_KEY antes de ejecutar este script" }
 $env:DATABASE_URL = 'postgresql://postgres:123456789@localhost:5432/payment_service_db'
 if (Test-Path .\venv\Scripts\Activate.ps1) {
     . .\venv\Scripts\Activate.ps1

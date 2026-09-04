@@ -228,10 +228,10 @@ INSERT INTO tipo_usuario (nombre, descripcion, nivel_prioridad, permisos) VALUES
 
 -- Insert Usuarios (password: "password123" hashed with bcrypt)
 INSERT INTO usuario (email, password_hash, nombre, apellido, telefono, tipo_usuario_id, estado) VALUES
-('admin@uleam.edu.ec', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lXz9p3hWHb4G', 'Juan', 'Pérez', '0998765432', 1, 'activo'),
-('profesor1@uleam.edu.ec', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lXz9p3hWHb4G', 'María', 'González', '0987654321', 2, 'activo'),
-('estudiante1@uleam.edu.ec', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lXz9p3hWHb4G', 'Carlos', 'Rodríguez', '0976543210', 3, 'activo'),
-('admin2@uleam.edu.ec', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lXz9p3hWHb4G', 'Ana', 'Martínez', '0965432109', 4, 'activo');
+('admin@uleam.edu.ec', '$2b$12$xv.cy3V.BjMaOpFcueoWqOpm89a2lHkC7hX.K5Wu65z2o3RxjpS16', 'Juan', 'Pérez', '0998765432', 1, 'activo'),
+('profesor1@uleam.edu.ec', '$2b$12$xv.cy3V.BjMaOpFcueoWqOpm89a2lHkC7hX.K5Wu65z2o3RxjpS16', 'María', 'González', '0987654321', 2, 'activo'),
+('estudiante1@uleam.edu.ec', '$2b$12$xv.cy3V.BjMaOpFcueoWqOpm89a2lHkC7hX.K5Wu65z2o3RxjpS16', 'Carlos', 'Rodríguez', '0976543210', 3, 'activo'),
+('admin2@uleam.edu.ec', '$2b$12$xv.cy3V.BjMaOpFcueoWqOpm89a2lHkC7hX.K5Wu65z2o3RxjpS16', 'Ana', 'Martínez', '0965432109', 4, 'activo');
 
 -- Insert CategoriaEspacio
 INSERT INTO categoria_espacio (nombre, descripcion, requiere_aprobacion, capacidad_maxima) VALUES

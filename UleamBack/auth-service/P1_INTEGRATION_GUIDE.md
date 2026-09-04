@@ -73,7 +73,7 @@ Esta guía explica cómo integrar el Auth Service (Pilar 2) con los servicios ex
 
 #### Auth Service (.env)
 ```bash
-JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+JWT_SECRET=<JWT_SECRET-definido-en-.env>
 JWT_ACCESS_EXPIRATION=15m
 JWT_REFRESH_EXPIRATION=7d
 ```
@@ -81,7 +81,7 @@ JWT_REFRESH_EXPIRATION=7d
 #### REST Service (.env)
 ```bash
 # DEBE ser el mismo que Auth Service
-SECRET_KEY=mi-secreto-auth-service-super-seguro-2025
+SECRET_KEY=<JWT_SECRET-definido-en-.env>
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
@@ -89,13 +89,13 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 #### GraphQL Service (.env)
 ```bash
 # DEBE ser el mismo que Auth Service
-JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+JWT_SECRET=<JWT_SECRET-definido-en-.env>
 ```
 
 #### WebSocket Service (.env)
 ```bash
 # DEBE ser el mismo que Auth Service
-JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+JWT_SECRET=<JWT_SECRET-definido-en-.env>
 ```
 
 ### 2. Variables de Entorno de Integración

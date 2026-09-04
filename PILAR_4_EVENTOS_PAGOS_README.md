@@ -147,7 +147,7 @@ websocket-service/
 ### Variables de Entorno
 ```env
 DATABASE_URL=postgresql://Reservas_ULEAM:123456@localhost:5432/reservasuleam
-JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+JWT_SECRET=<JWT_SECRET-definido-en-.env>
 PORT=3001
 CORS_ORIGIN=http://localhost:5173,http://localhost:3000
 LOG_LEVEL=debug
@@ -357,7 +357,7 @@ WEBHOOK_SECRET_STRIPE=whsec_...
 WEBHOOK_SECRET_MERCADOPAGO=...
 
 # JWT
-JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+JWT_SECRET=<JWT_SECRET-definido-en-.env>
 
 # Notification
 WEBSOCKET_SERVICE_URL=http://localhost:3001

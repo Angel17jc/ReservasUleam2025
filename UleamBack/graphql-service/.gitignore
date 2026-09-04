@@ -1,0 +1,18 @@
+# ===== Secretos =====
+.env
+.env.*
+*.env
+!.env.example
+*.pem
+*.key
+
+# ===== Go =====
+bin/
+graphql-service
+graphql-service.exe
+*.out
+*.test
+
+# ===== Logs =====
+*.log
+logs/

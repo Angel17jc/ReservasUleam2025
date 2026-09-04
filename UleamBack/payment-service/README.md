@@ -202,7 +202,7 @@ cp .env.example .env
 **Variables importantes:**
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/payment_service_db
-SECRET_KEY=mi-secreto-auth-service-super-seguro-2025  # Mismo que auth-service
+SECRET_KEY=<JWT_SECRET-definido-en-.env>  # Mismo que auth-service
 MOCK_PROVIDER_ENABLED=true
 REST_SERVICE_URL=http://localhost:8000
 WEBSOCKET_SERVICE_URL=http://localhost:3001

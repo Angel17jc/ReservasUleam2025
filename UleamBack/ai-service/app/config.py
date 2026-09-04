@@ -12,7 +12,7 @@ Principios aplicados:
 import logging
 from pydantic import Field, field_validator, HttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 class Settings(BaseSettings):
@@ -32,13 +32,14 @@ class Settings(BaseSettings):
     
     # ===== Database Configuration =====
     DATABASE_URL: str = Field(
-        default="postgresql+psycopg://Reservas_ULEAM:123456@localhost:5432/ai_service_db",
+        ...,  # obligatoria: se inyecta por entorno, sin credenciales por defecto
         description="PostgreSQL connection string"
     )
     
     # ===== JWT Configuration =====
     SECRET_KEY: str = Field(
-        default="mi-secreto-auth-service-super-seguro-2025",
+        ...,  # obligatoria: debe coincidir con auth-service
+        min_length=32,
         description="JWT secret key (shared with all services)"
     )
     ALGORITHM: str = Field(
@@ -111,10 +112,18 @@ class Settings(BaseSettings):
     )
     
     # ===== CORS Configuration =====
-    CORS_ORIGINS: List[str] = Field(
-        default=["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"],
-        description="List of allowed CORS origins"
+    CORS_ORIGINS: Union[str, List[str]] = Field(
+        default=["http://localhost:8084"],
+        description="Allowed CORS origins (lista o cadena separada por comas)"
     )
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Acepta 'a,b' desde el entorno ademas de una lista JSON."""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
     
     # ===== Storage Configuration =====
     UPLOAD_DIR: str = Field(

@@ -43,3 +43,12 @@ lerna-debug.log*
 temp/
 tmp/
 *.tmp
+
+# ===== Secretos =====
+.env.*
+*.env
+!.env.example
+*.pem
+*.key
+*secret*.txt
+*credentials*.json

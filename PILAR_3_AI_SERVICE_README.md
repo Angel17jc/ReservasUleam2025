@@ -433,7 +433,7 @@ GROQ_API_KEY=tu_key_aqui_desde_console_groq
 DEFAULT_LLM_PROVIDER=gemini  # o groq
 
 # JWT (compartido con otros servicios)
-JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+JWT_SECRET=<JWT_SECRET-definido-en-.env>
 
 # Server
 PORT=5000

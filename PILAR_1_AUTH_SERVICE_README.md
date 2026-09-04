@@ -225,7 +225,7 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 
 # JWT
-JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+JWT_SECRET=<JWT_SECRET-definido-en-.env>
 JWT_EXPIRES_IN=15m
 REFRESH_TOKEN_EXPIRES_IN=7d
 REFRESH_TOKEN_SECRET=mi-secreto-refresh-token-2025
@@ -755,7 +755,7 @@ n8n Workflows:
 ### Compartición de JWT_SECRET
 ```env
 # Todos los servicios deben tener el MISMO:
-JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+JWT_SECRET=<JWT_SECRET-definido-en-.env>
 
 # Ubicaciones:
 ├─ auth-service/.env

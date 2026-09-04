@@ -1,3 +1,4 @@
+import os
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
@@ -5,9 +6,9 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 conn = psycopg2.connect(
     host="localhost",
     port=5432,
-    user="postgres",
-    password="123456789",
-    database="reservasuleam"
+    user=os.getenv("DB_USERNAME", "postgres"),
+    password=os.environ["DB_PASSWORD"],  # obligatoria: nunca incrustar en el repositorio
+    database=os.getenv("DB_NAME", "reservasuleam")
 )
 conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 cursor = conn.cursor()

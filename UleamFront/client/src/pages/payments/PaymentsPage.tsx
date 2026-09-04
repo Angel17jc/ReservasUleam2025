@@ -44,7 +44,7 @@ export default function PaymentsPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Falta configurar VITE_PAYMENT_BASE_URL</AlertTitle>
           <AlertDescription>
-            Define VITE_PAYMENT_BASE_URL en tu .env.local (ej: http://localhost:8001) para consumir el servicio de pagos.
+            Define VITE_PAYMENT_BASE_URL en tu .env.local (ej: http://localhost:8024) para consumir el servicio de pagos.
           </AlertDescription>
         </Alert>
       )}

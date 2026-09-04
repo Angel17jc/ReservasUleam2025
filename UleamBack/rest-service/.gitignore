@@ -1,0 +1,29 @@
+# ===== Secretos =====
+.env
+.env.*
+*.env
+!.env.example
+*.pem
+*.key
+*secret*.txt
+*credentials*.json
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ===== Datos subidos por usuarios (LOPDP) =====
+media/
+uploads/
+
+# ===== Logs y temporales =====
+*.log
+logs/
+*.tmp

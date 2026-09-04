@@ -1,0 +1,313 @@
+name: reservasuleam
+
+# ==========================================================
+# ReservasUleam - Orquestación completa del ecosistema
+# Puertos del host: familia *4 (nunca 3000/5432/8000/8080/3306)
+# Variables: archivo .env en la raíz del repositorio
+# ==========================================================
+
+x-common-env: &common-env
+  NODE_ENV: ${NODE_ENV}
+  ENVIRONMENT: ${ENVIRONMENT}
+  LOG_LEVEL: ${LOG_LEVEL}
+  TZ: ${GENERIC_TIMEZONE}
+
+services:
+
+  # ------------------------------------------------------
+  # PostgreSQL 16 - persistencia (3 bases por dominio)
+  # ------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: uleam-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${GENERIC_TIMEZONE}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init/00-databases.sql:/docker-entrypoint-initdb.d/00-databases.sql:ro
+      - ./UleamBack/database/init.sql:/docker-entrypoint-initdb.d/01-core-schema.sql:ro
+      - ./UleamBack/auth-service/create_auth_tables.sql:/docker-entrypoint-initdb.d/02-auth-tables.sql:ro
+      - ./docker/postgres/init/03-grants.sql:/docker-entrypoint-initdb.d/03-grants.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [uleam-net]
+
+  # ------------------------------------------------------
+  # Redis 7 - caché de sesiones y rate limiting
+  # ------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: uleam-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [uleam-net]
+
+  # ------------------------------------------------------
+  # Auth Service (NestJS) - JWT, roles y sesiones
+  # ------------------------------------------------------
+  auth-service:
+    build:
+      context: ./UleamBack/auth-service
+    container_name: uleam-auth
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    environment:
+      <<: *common-env
+      PORT: 9000
+      API_PREFIX: ${API_PREFIX}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_CORE}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT_INTERNAL}
+      REDIS_DB: ${REDIS_DB}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
+      COOKIE_SECURE: ${COOKIE_SECURE}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      REST_SERVICE_URL: ${REST_SERVICE_URL}
+      INTERNAL_PROVISION_TOKEN: ${INTERNAL_PROVISION_TOKEN}
+    ports:
+      - "${AUTH_PORT}:9000"
+    networks: [uleam-net]
+
+  # ------------------------------------------------------
+  # REST Service (FastAPI) - núcleo de reservas
+  # ------------------------------------------------------
+  rest-service:
+    build:
+      context: ./UleamBack/rest-service
+    container_name: uleam-rest
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      <<: *common-env
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_CORE}
+      AUTH_DB_HOST: ${DB_HOST}
+      AUTH_DB_PORT: ${DB_PORT}
+      AUTH_DB_USERNAME: ${DB_USERNAME}
+      AUTH_DB_PASSWORD: ${DB_PASSWORD}
+      AUTH_DB_NAME: ${DB_CORE}
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      WEBSOCKET_SERVICE_URL: ${WEBSOCKET_SERVICE_URL}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      INTERNAL_PROVISION_TOKEN: ${INTERNAL_PROVISION_TOKEN}
+      RESERVAS_INTERNAL_TOKEN: ${RESERVAS_INTERNAL_TOKEN}
+    ports:
+      - "${REST_PORT}:8000"
+    volumes:
+      - rest_media:/app/media
+    networks: [uleam-net]
+
+  # ------------------------------------------------------
+  # GraphQL Service (Go) - disponibilidad y reportes
+  # ------------------------------------------------------
+  graphql-service:
+    build:
+      context: ./UleamBack/graphql-service
+    container_name: uleam-graphql
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      <<: *common-env
+      PORT: 8081
+      DATABASE_URL: ${GRAPHQL_DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      WEBSOCKET_SERVICE_URL: ${WEBSOCKET_SERVICE_URL}
+    ports:
+      - "${GRAPHQL_PORT}:8081"
+    networks: [uleam-net]
+
+  # ------------------------------------------------------
+  # AI Service (FastAPI) - asistente conversacional
+  # ------------------------------------------------------
+  ai-service:
+    build:
+      context: ./UleamBack/ai-service
+    container_name: uleam-ai
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      <<: *common-env
+      PORT: 5000
+      HOST: 0.0.0.0
+      API_PREFIX: ${API_PREFIX}
+      DATABASE_URL: ${AI_DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      DEFAULT_LLM_PROVIDER: ${DEFAULT_LLM_PROVIDER}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      REST_SERVICE_URL: ${REST_SERVICE_URL}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      WEBSOCKET_SERVICE_URL: ${WEBSOCKET_SERVICE_URL}
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "${AI_PORT}:5000"
+    volumes:
+      - ai_uploads:/app/uploads
+    networks: [uleam-net]
+
+  # ------------------------------------------------------
+  # Payment Service (FastAPI) - cobros e integración B2B
+  # ------------------------------------------------------
+  payment-service:
+    build:
+      context: ./UleamBack/payment-service
+    container_name: uleam-payment
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      <<: *common-env
+      PORT: 8001
+      HOST: 0.0.0.0
+      API_PREFIX: ${API_PREFIX}
+      DATABASE_URL: ${PAYMENT_DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      MOCK_PROVIDER_ENABLED: ${MOCK_PROVIDER_ENABLED}
+      STRIPE_API_KEY: ${STRIPE_API_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN}
+      WEBHOOK_MAX_RETRIES: ${WEBHOOK_MAX_RETRIES}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      REST_SERVICE_URL: ${REST_SERVICE_URL}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      WEBSOCKET_SERVICE_URL: ${WEBSOCKET_SERVICE_URL}
+      RESERVAS_INTERNAL_TOKEN: ${RESERVAS_INTERNAL_TOKEN}
+    ports:
+      - "${PAYMENT_PORT}:8001"
+    networks: [uleam-net]
+
+  # ------------------------------------------------------
+  # WebSocket Service (NestJS + Socket.IO) - tiempo real
+  # ------------------------------------------------------
+  websocket-service:
+    build:
+      context: ./UleamBack/websocket-service
+    container_name: uleam-websocket
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      <<: *common-env
+      PORT: 3001
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_CORE}
+      DB_DATABASE: ${DB_CORE}
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      AUTH_VALIDATE_ENDPOINT: ${AUTH_VALIDATE_ENDPOINT}
+      AUTH_PUBLIC_KEY_ENDPOINT: ${AUTH_PUBLIC_KEY_ENDPOINT}
+    ports:
+      - "${WEBSOCKET_PORT}:3001"
+    networks: [uleam-net]
+
+  # ------------------------------------------------------
+  # Frontend (React + Vite compilado, servido por Nginx)
+  # ------------------------------------------------------
+  frontend:
+    build:
+      context: ./UleamFront
+      args:
+        VITE_REST_BASE_URL: ${VITE_REST_BASE_URL}
+        VITE_AUTH_BASE_URL: ${VITE_AUTH_BASE_URL}
+        VITE_GRAPHQL_URL: ${VITE_GRAPHQL_URL}
+        VITE_WS_URL: ${VITE_WS_URL}
+        VITE_AI_SERVICE_URL: ${VITE_AI_SERVICE_URL}
+        VITE_PAYMENT_BASE_URL: ${VITE_PAYMENT_BASE_URL}
+    container_name: uleam-frontend
+    restart: unless-stopped
+    depends_on:
+      - auth-service
+      - rest-service
+      - graphql-service
+    ports:
+      - "${FRONTEND_PORT}:80"
+    networks: [uleam-net]
+
+  # ------------------------------------------------------
+  # n8n - orquestación de flujos y notificaciones
+  # ------------------------------------------------------
+  n8n:
+    # Version fijada: 'latest' falla al extraerse con el snapshotter de Docker Desktop (Windows)
+    image: n8nio/n8n:1.64.3
+    container_name: uleam-n8n
+    restart: unless-stopped
+    environment:
+      N8N_PORT: 5678
+      N8N_HOST: localhost
+      WEBHOOK_URL: http://localhost:${N8N_PORT}/
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_RUNNERS_ENABLED: "true"
+    ports:
+      - "${N8N_PORT}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./UleamBack/n8n-workflows:/workflows:ro
+    networks: [uleam-net]
+
+networks:
+  uleam-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
+  rest_media:
+  ai_uploads:

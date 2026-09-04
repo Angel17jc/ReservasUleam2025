@@ -12,9 +12,9 @@ import { TipoUsuario } from '../entities/tipo-usuario.entity';
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432'),
-      username: process.env.DB_USER || 'Reservas_ULEAM',
-      password: process.env.DB_PASSWORD || '123456789',
-      database: process.env.DB_NAME || 'reservasuleam',
+      username: process.env.DB_USER || process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD, // obligatoria: se inyecta por entorno
+      database: process.env.DB_NAME || process.env.DB_DATABASE,
       entities: [Notification, Usuario, TipoUsuario],
       synchronize: false, // No sincronizar automáticamente en producción
     }),

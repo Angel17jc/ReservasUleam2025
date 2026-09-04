@@ -1,7 +1,7 @@
 # Obtener token de admin
 $loginBody = @{
-    email = "admin@gmail.com"
-    password = "123456"
+    email = if ($env:TEST_EMAIL) { $env:TEST_EMAIL } else { "admin@uleam.edu.ec" }
+    password = if ($env:TEST_PASSWORD) { $env:TEST_PASSWORD } else { "password123" }
 } | ConvertTo-Json
 
 try {

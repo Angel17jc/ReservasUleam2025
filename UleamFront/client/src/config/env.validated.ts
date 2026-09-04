@@ -8,23 +8,23 @@ import { z } from 'zod';
 const envSchema = z.object({
   restBaseUrl: z
     .string()
-    .url('VITE_REST_BASE_URL debe ser una URL válida (ej: http://localhost:8000)')
+    .url('VITE_REST_BASE_URL debe ser una URL válida (ej: http://localhost:8004)')
     .describe('URL base del servicio REST (Python FastAPI)'),
 
   paymentBaseUrl: z
     .string()
-    .url('VITE_PAYMENT_BASE_URL debe ser una URL válida (ej: http://localhost:8001)')
+    .url('VITE_PAYMENT_BASE_URL debe ser una URL válida (ej: http://localhost:8024)')
     .optional()
     .describe('URL base del payment-service (FastAPI)'),
 
   graphqlUrl: z
     .string()
-    .url('VITE_GRAPHQL_URL debe ser una URL válida (ej: http://localhost:8080/graphql)')
+    .url('VITE_GRAPHQL_URL debe ser una URL válida (ej: http://localhost:8014/graphql)')
     .describe('URL del servicio GraphQL (Go)'),
 
   wsUrl: z
     .string()
-    .url('VITE_WS_URL debe ser una URL válida (ej: http://localhost:3001)')
+    .url('VITE_WS_URL debe ser una URL válida (ej: http://localhost:3014)')
     .describe('URL del servicio WebSocket (Socket.IO)'),
 
   mode: z
@@ -70,10 +70,10 @@ function validateEnv(): EnvConfig {
         '',
         '💡 Asegúrate de crear un archivo .env.local en la raíz de UleamFront con:',
         '',
-        '  VITE_REST_BASE_URL=http://localhost:8000',
-        '  VITE_PAYMENT_BASE_URL=http://localhost:8001',
-        '  VITE_GRAPHQL_URL=http://localhost:8080/graphql',
-        '  VITE_WS_URL=http://localhost:3001',
+        '  VITE_REST_BASE_URL=http://localhost:8004',
+        '  VITE_PAYMENT_BASE_URL=http://localhost:8024',
+        '  VITE_GRAPHQL_URL=http://localhost:8014/graphql',
+        '  VITE_WS_URL=http://localhost:3014',
         '',
       ].join('\n');
 

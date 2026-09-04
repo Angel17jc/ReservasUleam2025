@@ -142,7 +142,7 @@ uvicorn main:app --reload --port 8000
 DATABASE_URL=postgresql://Reservas_ULEAM:123456@localhost:5432/reservasuleam
 
 # JWT (compartido con otros servicios)
-SECRET_KEY=mi-secreto-auth-service-super-seguro-2025
+SECRET_KEY=<JWT_SECRET-definido-en-.env>
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # Webhooks
@@ -230,7 +230,7 @@ go mod tidy
 
 # Configurar .env
 export DATABASE_URL=postgresql://Reservas_ULEAM:123456@localhost:5432/reservasuleam
-export JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+export JWT_SECRET=<JWT_SECRET-definido-en-.env>
 export PORT=8080
 
 # Ejecutar
@@ -243,7 +243,7 @@ go run ./cmd/server
 DATABASE_URL=postgresql://Reservas_ULEAM:123456@localhost:5432/reservasuleam
 
 # JWT (compartido)
-JWT_SECRET=mi-secreto-auth-service-super-seguro-2025
+JWT_SECRET=<JWT_SECRET-definido-en-.env>
 
 # Server
 PORT=8080
