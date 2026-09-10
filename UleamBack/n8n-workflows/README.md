@@ -1,121 +1,128 @@
-# n8n Setup - Instalación y Guía Local
+# n8n — Orquestación de eventos (Pilar 4)
 
-## ✅ Instalación Completada
+n8n es el bus de eventos del sistema: recibe webhooks de pago y de partners externos,
+los valida, y encadena las llamadas a los demás microservicios.
 
-n8n ha sido instalado globalmente en tu Windows. Ya está listo para usar.
+Este archivo es el **punto de entrada único**. Los cuatro documentos de referencia que
+lo acompañan están enlazados al final.
 
-## 🚀 Cómo Ejecutar n8n Localmente
+---
 
-### Opción 1: Usando el script PowerShell (Recomendado)
+## Puesta en marcha
 
-Desde PowerShell, navega a la carpeta `UleamBack/` y ejecuta:
+n8n forma parte del `docker-compose.yml` de la raíz. No se instala ni se arranca aparte:
 
-```powershell
-cd C:\Users\ASUS\Desktop\ReservasUleam2026\ReservasUleam2025\UleamBack
-.\run-n8n.ps1
+```bash
+docker compose up -d n8n
 ```
 
-Esto:
-- Inicia n8n en `http://localhost:5678`
-- Guarda datos en `n8n-data/` (persistencia local)
-- Usa las variables de entorno configuradas
+| Dato | Valor |
+| :--- | :--- |
+| Interfaz web | http://localhost:5684 |
+| Usuario / contraseña | `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD` del `.env` raíz |
+| Puerto interno | `5678` |
+| Persistencia | volumen `n8n_data` (sobrevive a `docker compose down`) |
+| Imagen | `n8nio/n8n:1.64.3` — **versión fijada a propósito**, ver más abajo |
 
-### Opción 2: Comando directo (sin script)
+> **No cambiar la imagen a `:latest`.** Esa etiqueta falla al extraerse con el
+> snapshotter de Docker Desktop en Windows (`UtimesNanoAt ... node_modules/n8n/bin`)
+> y aborta el arranque de todo el stack.
 
-```powershell
-$env:N8N_USER_FOLDER = "C:\Users\ASUS\Desktop\ReservasUleam2026\ReservasUleam2025\UleamBack\n8n-data"
-n8n start
+### Importar los workflows
+
+Los cuatro `.json` de esta carpeta se importan desde la interfaz:
+**Workflows → Import from File**. No se cargan solos al levantar el contenedor.
+
+---
+
+## Los 4 workflows
+
+| # | Archivo | Disparador | Qué hace |
+| :-: | :--- | :--- | :--- |
+| 1 | `payment_handler.json` | Webhook `/webhook/payment-handler` | Valida el payload del pago, confirma la reserva en REST y notifica por WebSocket |
+| 2 | `partner_handler.json` | Webhook `/webhook/partner-handler` | Verifica la firma HMAC del partner, normaliza el evento, ejecuta la acción y responde ACK |
+| 3 | `mcp_input_handler.json` | Telegram | Extrae el mensaje, lo manda al AI service y responde por el mismo canal. **Desactivado por defecto** |
+| 4 | `scheduled_tasks.json` | Cron (23:59 diario / cada 6 h) | Reporte diario y health-check de los servicios |
+
+---
+
+## Direcciones dentro de Docker
+
+Los workflows corren **dentro** del contenedor de n8n, así que `localhost` apunta al
+propio n8n, no al host. Hay que usar el nombre del servicio y su **puerto interno**:
+
+| Servicio | URL desde n8n |
+| :--- | :--- |
+| REST | `http://rest-service:8000` |
+| Auth | `http://auth-service:9000` |
+| GraphQL | `http://graphql-service:8081` |
+| AI | `http://ai-service:5000` |
+| Payment | `http://payment-service:8001` |
+| WebSocket | `http://websocket-service:3001` |
+
+Los puertos `8004`, `3004`, `5684`… son el mapeo **al host**: sirven para el navegador
+y para `curl` desde tu máquina, nunca para las llamadas entre contenedores.
+
+---
+
+## Endpoints que los workflows invocan
+
+Verificado contra el código el 2026-09-09:
+
+| Endpoint invocado | Servicio | ¿Existe? |
+| :--- | :--- | :--- |
+| `POST /api/webhooks/reserva-actualizada` | websocket | ✅ Sí |
+| `POST /api/reservas/{id}/confirm` | rest | ❌ **No.** El equivalente real es `PATCH /api/reservas/{id}/estado` |
+| `POST /api/orders` | rest | ❌ **No existe** |
+| `GET /api/reports/daily` | rest | ❌ **No existe** |
+| `POST /api/chat/process` | ai | ❌ **No.** El real es `POST /api/v1/chat/message` |
+
+Los workflows 1, 2 y 4 fallarán en esos nodos hasta que se implementen los endpoints
+o se reescriban los nodos. Ver [REQUIRED_ENDPOINTS.md](REQUIRED_ENDPOINTS.md), que
+detalla el contrato esperado de cada uno.
+
+---
+
+## Seguridad
+
+Todos los webhooks entrantes de partners van firmados con **HMAC-SHA256** sobre el
+cuerpo serializado de forma canónica:
+
+```python
+payload_str = json.dumps(payload, sort_keys=True, separators=(',', ':'))
+signature   = hmac.new(secret.encode(), payload_str.encode(), hashlib.sha256).hexdigest()
 ```
 
-### Opción 3: Abrir n8n globalmente (sin carpeta específica)
+Los dos extremos deben serializar **exactamente igual** — un espacio de diferencia
+invalida la firma. La receta completa, con implementaciones en Python, JavaScript y
+PowerShell, está en [HMAC_UTILS.md](HMAC_UTILS.md).
 
-```powershell
-n8n start
+El secreto compartido se inyecta por entorno. Nunca se escribe en un workflow ni se
+versiona.
+
+---
+
+## Si algo falla
+
+| Síntoma | Causa habitual |
+| :--- | :--- |
+| `ECONNREFUSED` en un nodo HTTP | La URL usa `localhost` en vez del nombre del servicio |
+| `401` en un webhook de partner | Serialización JSON distinta en los dos extremos (ver HMAC_UTILS) |
+| n8n no arranca | La imagen no está fijada a `1.64.3` |
+| Los workflows desaparecieron | Se levantó con `docker compose down -v`, que borra el volumen `n8n_data` |
+| `404` en un nodo HTTP | El endpoint no existe todavía — ver la tabla de arriba |
+
+```bash
+docker compose logs -f n8n
 ```
 
-## 📂 Estructura de Carpetas
+---
 
-```
-UleamBack/
-├── n8n-workflows/
-│   ├── CONTRACT_EVENTS.md           # Contrato normalizado de eventos
-│   ├── README.md                    # Esta guía
-│   ├── payment_handler.json         # Workflow 1
-│   ├── partner_handler.json         # Workflow 2
-│   ├── mcp_input_handler.json       # Workflow 3 (opcional)
-│   └── scheduled_tasks.json         # Workflow 4
-├── n8n-data/                        # Almacenamiento local (generado por n8n)
-├── run-n8n.ps1                      # Script para ejecutar n8n
-└── docker-compose.n8n.yml           # (No usado en setup local)
-```
+## Documentos de referencia
 
-## 🌐 Acceso
-
-Una vez ejecutado:
-- **URL**: `http://localhost:5678`
-- **Primera ejecución**: Te pedirá crear usuario/contraseña
-- **Dashboard**: Verás panel principal de n8n
-
-## 🔧 Variables de Entorno Importantes
-
-Las siguientes variables pueden configurarse al ejecutar n8n:
-
-```powershell
-$env:N8N_HOST = "localhost"                     # Host
-$env:N8N_PORT = "5678"                          # Puerto
-$env:N8N_USER_FOLDER = "path/to/n8n-data"      # Almacenamiento
-$env:NODE_ENV = "development"                   # Modo desarrollo
-$env:N8N_PROTOCOL = "http"                      # Protocolo
-```
-
-## 📝 Próximos Pasos
-
-1. **Iniciar n8n** usando el script
-2. **Crear workflows** para:
-   - Payment Handler
-   - Partner Handler
-   - MCP Input Handler
-   - Scheduled Tasks
-3. **Configurar integraciones** con:
-   - REST API (localhost:8000)
-   - GraphQL (localhost:8080)
-   - WebSocket (localhost:3001)
-   - SMTP (email)
-4. **Exportar workflows** como JSON
-
-## 🧪 Testing Rápido
-
-Una vez que n8n esté corriendo:
-
-```powershell
-# Verificar que n8n está accesible
-curl http://localhost:5678
-```
-
-## ❌ Si Hay Problemas
-
-**n8n no inicia**:
-```powershell
-# Limpiar caché y reintentar
-rm -r C:\Users\ASUS\.n8n
-n8n start
-```
-
-**Puerto 5678 en uso**:
-```powershell
-# Cambiar puerto temporalmente
-$env:N8N_PORT = "5679"
-n8n start
-```
-
-**Permiso denegado en PowerShell**:
-```powershell
-# Ejecutar como administrador o cambiar política de ejecución
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-## 📚 Documentación Oficial
-
-- [n8n Docs](https://docs.n8n.io/)
-- [n8n Docker](https://docs.n8n.io/hosting/installation/docker/)
-- [n8n Node Reference](https://docs.n8n.io/nodes/)
+| Documento | Contenido |
+| :--- | :--- |
+| [CONTRACT_EVENTS.md](CONTRACT_EVENTS.md) | Contrato normalizado de eventos: estructura, campos obligatorios y tipos |
+| [HMAC_UTILS.md](HMAC_UTILS.md) | Firma y verificación HMAC-SHA256 en cada lenguaje |
+| [REQUIRED_ENDPOINTS.md](REQUIRED_ENDPOINTS.md) | Endpoints que los workflows necesitan, con su contrato |
+| [DEMO_STEPS.md](DEMO_STEPS.md) | Guion paso a paso para demostrar los flujos |

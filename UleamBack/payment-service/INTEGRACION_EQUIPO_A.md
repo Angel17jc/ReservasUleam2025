@@ -1,7 +1,36 @@
-# 🤝 INTEGRACIÓN B2B CORRECTA - Pilar 2 Payment Service
+# Integración B2B con Equipo A — Payment Service (Pilar 2)
 
-**Estado**: En Configuración  
-**Servicio**: payment-service (Puerto 8001)
+**Servicio**: `payment-service` · puerto interno `8001` · puerto en el host `8024`
+
+## Quién es quién
+
+Esta es la fuente de verdad; los nombres se habían usado al revés en documentos anteriores.
+Lo que manda es el código de `app/routes/equipo_a_webhook.py`:
+
+| | Quién | Identificador en los eventos |
+| :--- | :--- | :--- |
+| **Nosotros** | Sistema de Reservas ULEAM — **Equipo B** | firmamos como `equipo-b-uleam-reservas` |
+| **El partner** | Recomendaciones Turísticas ULEAM — **Equipo A** | solo aceptamos `equipo-a-recomendaciones` |
+
+Nuestro endpoint de entrada rechaza con `401` cualquier evento cuyo `source` no sea
+`equipo-a-recomendaciones`.
+
+## Configuración del secreto
+
+El secreto HMAC compartido **no está en el código**. Se inyecta por entorno desde el
+`.env` de la raíz:
+
+```bash
+EQUIPO_A_SHARED_SECRET=<secreto-acordado-con-equipo-a>
+EQUIPO_A_WEBHOOK_URL=<url-publica-de-equipo-a>/api/reservas
+```
+
+Si `EQUIPO_A_SHARED_SECRET` está vacío, los endpoints `/api/v1/equipo-a/*` responden
+`503` y la integración queda apagada — es deliberado: preferimos que falle a que
+arranque con un secreto adivinable.
+
+> ⚠️ El secreto que se usó hasta ahora estuvo publicado en el repositorio. **Hay que
+> rotarlo coordinando con Equipo A**; cambiarlo solo por nuestro lado rompe la firma.
 
 ---
 
@@ -21,7 +50,7 @@ La integración B2B **DEBE estar en payment-service** (Pilar 2), NO en rest-serv
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  EQUIPO A: Recomendaciones Turísticas                           │
-│  URL: https://unfulminated-charley-airtightly.ngrok-free.dev   │
+│  URL: <url-publica-de-equipo-a>   │
 │                                                                  │
 │  Envía eventos:                                                  │
 │  - tour.purchased                                                │
@@ -99,10 +128,10 @@ uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 
 **Verificar que funciona**:
 ```powershell
-curl http://localhost:8001/health
+curl http://localhost:8024/health
 # Esperado: {"status": "healthy"}
 
-curl http://localhost:8001/docs
+curl http://localhost:8024/api/v1/docs
 # Abre Swagger UI
 ```
 
@@ -128,7 +157,7 @@ Partner ID: 1
 API Key: pk_partner_abc123xyz...
 Secret Key: sk_secret_def456uvw...
 
-Webhook URL: https://unfulminated-charley-airtightly.ngrok-free.dev/api/reservas
+Webhook URL: <url-publica-de-equipo-a>/api/reservas
 ```
 
 ---
@@ -196,10 +225,10 @@ WHERE id = 1;
 
 2. **O usar el endpoint de actualización**:
 ```powershell
-curl -X PATCH http://localhost:8001/api/v1/partners/1 \
+curl -X PATCH http://localhost:8024/api/v1/partners/1 \
   -H "Content-Type: application/json" \
   -d '{
-    "webhook_url": "https://unfulminated-charley-airtightly.ngrok-free.dev/api/reservas",
+    "webhook_url": "<url-publica-de-equipo-a>/api/reservas",
     "metadata": {
       "equipo_a_api_key": "[SU_API_KEY]",
       "equipo_a_secret": "[SU_SECRET]"
@@ -215,7 +244,7 @@ curl -X PATCH http://localhost:8001/api/v1/partners/1 \
 
 ```powershell
 # Payment service local
-curl http://localhost:8001/health
+curl http://localhost:8024/health
 
 # Payment service público (si tienes ngrok)
 curl https://tu-ngrok-payment.ngrok-free.dev/health
@@ -226,7 +255,7 @@ curl https://tu-ngrok-payment.ngrok-free.dev/health
 ### Test 2: Listar Partners
 
 ```powershell
-curl http://localhost:8001/api/v1/partners
+curl http://localhost:8024/api/v1/partners
 ```
 
 Debe mostrar al Equipo A registrado.
@@ -244,7 +273,7 @@ import hashlib
 import json
 import time
 
-PAYMENT_SERVICE_URL = "http://localhost:8001"
+PAYMENT_SERVICE_URL = "http://localhost:8024"
 API_KEY = "[API_KEY_DEL_EQUIPO_A]"  # La que generaste
 SECRET = "[SECRET_DEL_EQUIPO_A]"    # La que generaste
 
@@ -302,7 +331,7 @@ Response: {"status": "success", "event_id": "evt_test_001"}
 **Usar endpoint de test del payment-service**:
 
 ```powershell
-curl -X POST http://localhost:8001/api/v1/webhooks/test/partner/1
+curl -X POST http://localhost:8024/api/v1/webhooks/test/partner/1
 ```
 
 Esto envía un webhook de prueba al Equipo A.

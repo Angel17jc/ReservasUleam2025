@@ -109,6 +109,26 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = Field(default=True)
     RATE_LIMIT_PER_MINUTE: int = Field(default=60, ge=10, le=1000)
     
+    # ===== Integracion B2B con Equipo A (Recomendaciones Turisticas) =====
+    # El secreto compartido NUNCA se incrusta en el codigo: se inyecta por entorno.
+    EQUIPO_A_SHARED_SECRET: Optional[str] = Field(
+        default=None,
+        min_length=16,
+        description="Secreto HMAC compartido con Equipo A. Sin el, la integracion queda deshabilitada."
+    )
+    EQUIPO_A_WEBHOOK_URL: Optional[str] = Field(
+        default=None,
+        description="URL de Equipo A donde publicamos nuestros eventos"
+    )
+    EQUIPO_A_HEALTH_URL: Optional[str] = Field(
+        default=None,
+        description="URL de health-check de Equipo A"
+    )
+    EQUIPO_A_STATUS_URL: Optional[str] = Field(
+        default=None,
+        description="URL de estado de integracion de Equipo A"
+    )
+
     # ===== Application Metadata =====
     APP_NAME: str = Field(default="ULEAM Payment Service")
     APP_VERSION: str = Field(default="1.0.0")

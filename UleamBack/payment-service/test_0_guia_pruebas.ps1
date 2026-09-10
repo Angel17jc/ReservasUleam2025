@@ -20,7 +20,7 @@ try {
 $ngrokRunning = Get-Process -Name ngrok -ErrorAction SilentlyContinue
 if ($ngrokRunning) {
     Write-Host "✅ ngrok: ONLINE" -ForegroundColor Green
-    Write-Host "   URL: https://heuristically-farraginous-marquitta.ngrok-free.dev" -ForegroundColor Gray
+    Write-Host "   URL: <nuestra-url-publica>" -ForegroundColor Gray
 } else {
     Write-Host "❌ ngrok: OFFLINE" -ForegroundColor Red
     Write-Host "   → Ejecutar: ngrok http 8001" -ForegroundColor Yellow
@@ -30,15 +30,15 @@ Write-Host "`n🌐 ENDPOINTS CONFIGURADOS:" -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
 
 Write-Host "`n📤 EQUIPO A (Ellos):" -ForegroundColor Cyan
-Write-Host "   Webhook:      https://unfulminated-charley-airtightly.ngrok-free.dev/api/reservas" -ForegroundColor White
-Write-Host "   Health:       https://unfulminated-charley-airtightly.ngrok-free.dev/health" -ForegroundColor White
-Write-Host "   Status:       https://unfulminated-charley-airtightly.ngrok-free.dev/api/integracion/status" -ForegroundColor White
+Write-Host "   Webhook:      <url-publica-de-equipo-a>/api/reservas" -ForegroundColor White
+Write-Host "   Health:       <url-publica-de-equipo-a>/health" -ForegroundColor White
+Write-Host "   Status:       <url-publica-de-equipo-a>/api/integracion/status" -ForegroundColor White
 
 Write-Host "`n📥 EQUIPO B (Nosotros):" -ForegroundColor Cyan
-Write-Host "   Webhook:      https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/equipo-a/webhook" -ForegroundColor White
-Write-Host "   Status:       https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/equipo-a/status" -ForegroundColor White
-Write-Host "   Health:       https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/health" -ForegroundColor White
-Write-Host "   Docs:         https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/docs" -ForegroundColor White
+Write-Host "   Webhook:      <nuestra-url-publica>/api/v1/equipo-a/webhook" -ForegroundColor White
+Write-Host "   Status:       <nuestra-url-publica>/api/v1/equipo-a/status" -ForegroundColor White
+Write-Host "   Health:       <nuestra-url-publica>/api/v1/health" -ForegroundColor White
+Write-Host "   Docs:         <nuestra-url-publica>/api/v1/docs" -ForegroundColor White
 
 Write-Host "`n🧪 SCRIPTS DE PRUEBA DISPONIBLES:" -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
@@ -57,7 +57,7 @@ Write-Host "`n🔐 AUTENTICACIÓN:" -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
 Write-Host "   Método: HMAC-SHA256" -ForegroundColor White
 Write-Host "   Header: X-Signature" -ForegroundColor White
-Write-Host "   Secret: integracion-turismo-2026-uleam" -ForegroundColor Magenta
+Write-Host "   Secret: (definido en la variable de entorno EQUIPO_A_SHARED_SECRET)" -ForegroundColor Magenta
 
 Write-Host "`n📊 EVENTOS CONFIGURADOS:" -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
@@ -84,7 +84,7 @@ Write-Host "   👉 Coordinar con Equipo A para verificar recepción" -Foregroun
 
 Write-Host "`n3. Probar recepción (Equipo A → Nosotros):" -ForegroundColor Cyan
 Write-Host "   .\test_2_receive_from_equipo_a.ps1" -ForegroundColor White
-Write-Host "   👉 También pueden usar: https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/docs" -ForegroundColor Yellow
+Write-Host "   👉 También pueden usar: <nuestra-url-publica>/api/v1/docs" -ForegroundColor Yellow
 
 Write-Host "`n4. Prueba completa bidireccional:" -ForegroundColor Cyan
 Write-Host "   Ejecutar ambos tests y verificar logs en ambos lados" -ForegroundColor White

@@ -33,8 +33,8 @@ El **payment-service** soporta webhooks **bidireccionales**:
 {
   "api_key": "partner_key_abc123",
   "shared_secret": "partner_secret_xyz789",
-  "webhook_endpoint": "http://localhost:8001/api/v1/partners/webhook",
-  "documentation": "http://localhost:8001/docs"
+  "webhook_endpoint": "http://localhost:8024/api/v1/partners/webhook",
+  "documentation": "http://localhost:8024/api/v1/docs"
 }
 ```
 
@@ -210,7 +210,7 @@ app.post('/webhooks/payment', express.raw({type: 'application/json'}), (req, res
 ### Endpoint
 
 ```
-POST http://localhost:8001/api/v1/partners/webhook
+POST http://localhost:8024/api/v1/partners/webhook
 ```
 
 ### Generar Firma HMAC (Python)
@@ -266,7 +266,7 @@ def send_booking_confirmed(booking_id, reserva_id, amount):
     
     # Enviar
     response = requests.post(
-        "http://localhost:8001/api/v1/partners/webhook",
+        "http://localhost:8024/api/v1/partners/webhook",
         json=payload,
         headers=headers
     )
@@ -321,7 +321,7 @@ async function sendBookingConfirmed(bookingId, reservaId, amount) {
     
     // Enviar
     const response = await axios.post(
-        'http://localhost:8001/api/v1/partners/webhook',
+        'http://localhost:8024/api/v1/partners/webhook',
         payload,
         { headers }
     );
@@ -467,7 +467,7 @@ async function sendBookingConfirmed(bookingId, reservaId, amount) {
 ### 1. Health Check
 
 ```bash
-curl http://localhost:8001/api/v1/partners/webhook/health
+curl http://localhost:8024/api/v1/partners/webhook/health
 ```
 
 **Respuesta**:
@@ -482,7 +482,7 @@ curl http://localhost:8001/api/v1/partners/webhook/health
 ### 2. Listar Eventos Soportados
 
 ```bash
-curl http://localhost:8001/api/v1/partners/webhook/events
+curl http://localhost:8024/api/v1/partners/webhook/events
 ```
 
 **Respuesta**:
@@ -526,7 +526,7 @@ print(hmac.new(secret.encode(), payload_str.encode(), hashlib.sha256).hexdigest(
 ")
 
 # Enviar
-curl -X POST http://localhost:8001/api/v1/partners/webhook \
+curl -X POST http://localhost:8024/api/v1/partners/webhook \
   -H "Content-Type: application/json" \
   -H "X-Api-Key: partner_key_abc123" \
   -H "X-Webhook-Signature: $SIGNATURE" \
@@ -592,7 +592,7 @@ curl -X POST http://localhost:8001/api/v1/partners/webhook \
 **Equipo Payment Service**:
 - Email: dev@uleam-payment.com
 - Slack: #payment-service-support
-- Docs: http://localhost:8001/docs
+- Docs: http://localhost:8024/api/v1/docs
 
 **Disponibilidad**: Lunes a Viernes, 9am - 6pm
 
@@ -600,7 +600,7 @@ curl -X POST http://localhost:8001/api/v1/partners/webhook \
 
 ## 📚 Referencias
 
-- [OpenAPI Documentation](http://localhost:8001/docs)
+- [OpenAPI Documentation](http://localhost:8024/api/v1/docs)
 - [HMAC-SHA256 Specification](https://datatracker.ietf.org/doc/html/rfc2104)
 - [Webhook Security Best Practices](https://webhooks.fyi/security/hmac)
 

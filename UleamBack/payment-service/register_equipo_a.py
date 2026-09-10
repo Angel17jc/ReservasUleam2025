@@ -9,18 +9,19 @@ Este script:
 
 IMPORTANTE: Ejecutar una sola vez. Las credenciales solo se muestran una vez.
 """
+import os
 
 import requests
 import json
 
 # Configuración del payment-service (local)
-PAYMENT_SERVICE_URL = "http://localhost:8001"  # Puerto del payment-service
+PAYMENT_SERVICE_URL = os.getenv("PAYMENT_SERVICE_URL", "http://localhost:8024")  # Puerto del payment-service
 
 # Datos del Equipo A (Recomendaciones Turísticas ULEAM)
 EQUIPO_A_DATA = {
     "name": "Equipo A - Recomendaciones Turísticas ULEAM",
     "email": "equipo-a@uleam.edu.ec",
-    "webhook_url": "https://unfulminated-charley-airtightly.ngrok-free.dev/api/reservas",
+    "webhook_url": os.environ["EQUIPO_A_WEBHOOK_URL"],
     "events_subscribed": [
         "payment.success",      # Cuando un pago es exitoso
         "payment.failed",       # Cuando un pago falla

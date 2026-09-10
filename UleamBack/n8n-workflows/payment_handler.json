@@ -23,7 +23,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/api/reservas/{{ $json.booking_id }}/confirm",
+        "url": "http://rest-service:8000/api/reservas/{{ $json.booking_id }}/confirm",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -48,7 +48,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:3001/api/webhooks/reserva-actualizada",
+        "url": "http://websocket-service:3001/api/webhooks/reserva-actualizada",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

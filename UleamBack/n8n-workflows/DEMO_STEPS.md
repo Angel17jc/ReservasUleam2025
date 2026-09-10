@@ -326,6 +326,6 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/admin/event-logs" `
 1. ✅ 4 Workflows en JSON (payment, partner, mcp, scheduled)
 2. ✅ Contrato de eventos (CONTRACT_EVENTS.md)
 3. ✅ Utilidades HMAC (HMAC_UTILS.md)
-4. ✅ Configuración de endpoints (ENDPOINTS_CONFIG.md)
+4. ✅ Configuración de endpoints (README.md)
 5. ✅ Este documento (DEMO_STEPS.md)
 6. ✅ README con instrucciones de setup local

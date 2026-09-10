@@ -1,0 +1,26 @@
+{
+  "name": "Equipo A - Recomendaciones Turisticas ULEAM",
+  "email": "equipoa@uleam.edu.ec",
+  "webhook_url": "<url-publica-de-equipo-a>/api/reservas",
+  "events_subscribed": [
+    "booking.confirmed",
+    "payment.success",
+    "service.activated"
+  ],
+  "metadata": {
+    "description": "Partner de recomendaciones turisticas - Integracion B2B bidireccional",
+    "health_check": "<url-publica-de-equipo-a>/health",
+    "status_url": "<url-publica-de-equipo-a>/api/integracion/status",
+    "shared_secret": "<secreto-HMAC-acordado-con-equipo-a>",
+    "eventos_que_envian": [
+      "tour.purchased",
+      "booking.confirmed",
+      "recommendation.created"
+    ],
+    "eventos_que_reciben": [
+      "booking.confirmed",
+      "payment.success",
+      "service.activated"
+    ]
+  }
+}

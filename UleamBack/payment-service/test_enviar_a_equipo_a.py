@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 TESTS: Enviar webhooks desde Equipo B (ULEAM) a Equipo A
@@ -9,7 +10,7 @@ hacia el Equipo A (Recomendaciones Turísticas).
 CONFIGURACIÓN:
 - Usamos el endpoint local: http://localhost:8001/api/v1/equipo-a/test-send
 - El endpoint interno hace POST a Equipo A con HMAC correcto
-- URL de Equipo A: https://unfulminated-charley-airtightly.ngrok-free.dev/api/reservas
+- URL de Equipo A: <url-publica-de-equipo-a>/api/reservas
 """
 
 import requests
@@ -90,7 +91,7 @@ def test_equipo_a_health():
     print("🧪 TEST 2: Verificar health de Equipo A")
     print("="*70)
     
-    health_url = "https://unfulminated-charley-airtightly.ngrok-free.dev/health"
+    health_url = os.environ["EQUIPO_A_HEALTH_URL"]
     
     print(f"\n📤 Consultando: {health_url}")
     

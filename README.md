@@ -243,6 +243,13 @@ INTERNAL_PROVISION_TOKEN=<secreto-interno-auth-a-rest>
 RESERVAS_INTERNAL_TOKEN=<secreto-interno-payment-a-rest>
 
 # ==========================================================
+# INTEGRACION B2B - EQUIPO A (opcional)
+# Si el secreto esta vacio, /api/v1/equipo-a/* responde 503
+# ==========================================================
+EQUIPO_A_SHARED_SECRET=<secreto-HMAC-acordado-con-equipo-a>
+EQUIPO_A_WEBHOOK_URL=<url-publica-de-equipo-a>/api/reservas
+
+# ==========================================================
 # CORS  (orígenes del navegador: puertos del HOST)
 # ==========================================================
 CORS_ORIGINS=http://localhost:8084
@@ -290,6 +297,8 @@ N8N_WEBHOOK_URL=http://n8n:5678/webhook
 | `DATABASE_URL` | REST, AI, Payment | Driver `psycopg` v3 |
 | `INTERNAL_PROVISION_TOKEN` | Auth → REST | Sincronización interna de usuarios |
 | `GROQ_API_KEY` *o* `GEMINI_API_KEY` | AI | Al menos uno, según `DEFAULT_LLM_PROVIDER` |
+
+La integración B2B es **opcional**: si `EQUIPO_A_SHARED_SECRET` está vacío, los endpoints `/api/v1/equipo-a/*` del servicio de pagos responden `503` y el resto del sistema funciona con normalidad.
 
 ---
 

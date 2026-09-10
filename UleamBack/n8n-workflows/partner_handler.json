@@ -33,7 +33,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/api/orders",
+        "url": "http://rest-service:8000/api/orders",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

@@ -14,6 +14,7 @@ from datetime import datetime
 import hmac
 import hashlib
 
+from ..config import settings
 from ..database import get_db
 from ..services.hmac_service import HmacService
 
@@ -22,15 +23,31 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/equipo-a", tags=["equipo-a-integration"])
 
 
-# Configuración de Equipo A (según mensaje recibido)
+# Configuracion de Equipo A: el secreto y las URLs se inyectan por entorno,
+# nunca se versionan en el codigo.
 EQUIPO_A_CONFIG = {
-    "shared_secret": "integracion-turismo-2026-uleam",
-    "webhook_url": "https://unfulminated-charley-airtightly.ngrok-free.dev/api/reservas",
-    "health_url": "https://unfulminated-charley-airtightly.ngrok-free.dev/health",
-    "status_url": "https://unfulminated-charley-airtightly.ngrok-free.dev/api/integracion/status",
+    "shared_secret": settings.EQUIPO_A_SHARED_SECRET,
+    "webhook_url": settings.EQUIPO_A_WEBHOOK_URL,
+    "health_url": settings.EQUIPO_A_HEALTH_URL,
+    "status_url": settings.EQUIPO_A_STATUS_URL,
     "eventos_que_envian": ["tour.purchased", "booking.confirmed", "recommendation.created"],
     "eventos_que_reciben": ["booking.confirmed", "payment.success", "service.activated"]
 }
+
+
+def _require_shared_secret() -> str:
+    """Devuelve el secreto compartido o corta la peticion si no esta configurado."""
+    secret = EQUIPO_A_CONFIG["shared_secret"]
+    if not secret:
+        logger.error(
+            "[Equipo A] EQUIPO_A_SHARED_SECRET no esta configurado: "
+            "la integracion B2B esta deshabilitada."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Equipo A integration is not configured"
+        )
+    return secret
 
 
 @router.post(
@@ -66,7 +83,7 @@ async def receive_equipo_a_webhook(
         is_valid = HmacService.validate_signature(
             payload=payload,  # Pasar dict, no string
             signature=x_signature,
-            secret=EQUIPO_A_CONFIG["shared_secret"]
+            secret=_require_shared_secret()
         )
         
         # 4. Logging detallado para debugging HMAC
@@ -77,7 +94,6 @@ async def receive_equipo_a_webhook(
                 f"[Equipo A Webhook] ❌ FIRMA INVÁLIDA - Debugging Info:\n"
                 f"   📦 Payload recibido: {json.dumps(payload, indent=2)}\n"
                 f"   📝 Payload normalizado: {normalized_payload}\n"
-                f"   🔑 Secret usado: {EQUIPO_A_CONFIG['shared_secret'][:10]}...\n"
                 f"   ✍️  Firma recibida: {x_signature}\n"
                 f"   💡 Mensaje para Equipo B: Asegúrense de usar json.dumps(payload, sort_keys=True, separators=(',', ':'))"
             )
@@ -285,8 +301,7 @@ async def get_equipo_a_integration_status(db: Session = Depends(get_db)):
                 "webhook_url": EQUIPO_A_CONFIG["webhook_url"],
                 "health_url": EQUIPO_A_CONFIG["health_url"],
                 "status_url": EQUIPO_A_CONFIG["status_url"],
-                "shared_secret_configured": True,
-                "shared_secret_value": EQUIPO_A_CONFIG["shared_secret"][:10] + "..." # Mostrar solo inicio
+                "shared_secret_configured": bool(EQUIPO_A_CONFIG["shared_secret"])
             },
             "events": {
                 "we_receive_from_equipo_a": EQUIPO_A_CONFIG["eventos_que_envian"],
@@ -355,7 +370,7 @@ async def test_send_to_equipo_a(db: Session = Depends(get_db)):
         # Generar firma HMAC (sobre el string serializado)
         payload_str = json.dumps(payload, sort_keys=True, separators=(',', ':'))
         signature = hmac.new(
-            EQUIPO_A_CONFIG["shared_secret"].encode('utf-8'),
+            _require_shared_secret().encode('utf-8'),
             payload_str.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()

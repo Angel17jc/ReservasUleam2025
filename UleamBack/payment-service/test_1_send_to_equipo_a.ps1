@@ -6,7 +6,7 @@ Write-Host "║  TEST 1: ENVIAR WEBHOOK A EQUIPO A (Nosotros → Ellos)  ║" -F
 Write-Host "╚══════════════════════════════════════════════════════════╝`n" -ForegroundColor Cyan
 
 Write-Host "🚀 Enviando webhook de prueba a Equipo A..." -ForegroundColor Yellow
-Write-Host "   URL destino: https://unfulminated-charley-airtightly.ngrok-free.dev/api/reservas`n" -ForegroundColor Gray
+Write-Host "   URL destino: <url-publica-de-equipo-a>/api/reservas`n" -ForegroundColor Gray
 
 try {
     $response = Invoke-RestMethod -Uri "http://localhost:8001/api/v1/equipo-a/test-send" -Method POST

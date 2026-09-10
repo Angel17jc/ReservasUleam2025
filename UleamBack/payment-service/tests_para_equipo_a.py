@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 TESTS PARA EQUIPO A - Enviar webhooks a Equipo B (ULEAM)
@@ -7,8 +8,8 @@ Este script contiene todos los tests que el Equipo A debe ejecutar
 para verificar que pueden enviar webhooks correctamente a ULEAM.
 
 CONFIGURACIÓN:
-- URL de Equipo B (ULEAM): https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/equipo-a/webhook
-- Secret compartido: integracion-turismo-2026-uleam
+- URL de Equipo B (ULEAM): <nuestra-url-publica>/api/v1/equipo-a/webhook
+- Secret compartido: <secreto-acordado-con-equipo-a>
 - Método: HMAC-SHA256 en header X-Signature
 
 EVENTOS QUE EQUIPO A PUEDE ENVIAR:
@@ -26,8 +27,8 @@ from datetime import datetime
 # ============================================================================
 # CONFIGURACIÓN
 # ============================================================================
-SECRET = "integracion-turismo-2026-uleam"
-URL_EQUIPO_B = "https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/equipo-a/webhook"
+SECRET = os.environ["EQUIPO_A_SHARED_SECRET"]  # obligatoria: nunca incrustar el secreto
+URL_EQUIPO_B = os.getenv("NUESTRA_URL_PUBLICA", "http://localhost:8024") + "/api/v1/equipo-a/webhook"
 
 # ============================================================================
 # FUNCIÓN PARA GENERAR FIRMA HMAC (MÉTODO CORRECTO)
@@ -96,7 +97,7 @@ def enviar_webhook(evento, payload, test_name):
             print("❌ ERROR 401: Firma HMAC inválida")
             print(f"📦 Response: {response.text}")
             print("\n💡 Verificar:")
-            print("   1. Secret key: integracion-turismo-2026-uleam")
+            print("   1. Secret key: <secreto-acordado-con-equipo-a>")
             print("   2. Usar json.dumps con sort_keys=True y separators=(',', ':')")
             print("   3. Enviar con data=mensaje (NO json=payload)")
             return False
@@ -281,7 +282,7 @@ def test_health_check():
     print("🧪 TEST: Health Check - Verificar servicio online")
     print("="*70)
     
-    health_url = "https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/health"
+    health_url = os.getenv("NUESTRA_URL_PUBLICA", "http://localhost:8024") + "/api/v1/health"
     
     try:
         response = requests.get(health_url, timeout=5)

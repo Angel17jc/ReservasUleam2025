@@ -135,15 +135,15 @@ Muestra un menú donde pueden elegir qué test ejecutar.
 ### ✅ TEST 6: Health Check
 **¿Qué prueba?** Verifica que nuestro servicio está online.
 
-**URL:** https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/health
+**URL:** <nuestra-url-publica>/api/v1/health
 
 ---
 
 ## 🔐 CONFIGURACIÓN USADA EN LOS TESTS
 
 ```python
-SECRET = "integracion-turismo-2026-uleam"
-URL = "https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/equipo-a/webhook"
+SECRET = "<secreto-acordado-con-equipo-a>"
+URL = "<nuestra-url-publica>/api/v1/equipo-a/webhook"
 ```
 
 **Método de firma:**
@@ -177,7 +177,7 @@ firma = hmac.new(SECRET.encode(), mensaje.encode(), hashlib.sha256).hexdigest()
 ❌ ERROR 401: Firma HMAC inválida
 
 💡 Verificar:
-   1. Secret key: integracion-turismo-2026-uleam
+   1. Secret key: <secreto-acordado-con-equipo-a>
    2. Usar json.dumps con sort_keys=True y separators=(',', ':')
    3. Enviar con data=mensaje (NO json=payload)
 ```
@@ -206,7 +206,7 @@ Nuestro sistema acepta estos eventos de Equipo A:
 
 ### 1. Recibir webhook (POST)
 ```
-POST https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/equipo-a/webhook
+POST <nuestra-url-publica>/api/v1/equipo-a/webhook
 ```
 
 **Headers requeridos:**
@@ -221,14 +221,14 @@ POST https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/equipo-a/
 
 ### 2. Health Check (GET)
 ```
-GET https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/health
+GET <nuestra-url-publica>/api/v1/health
 ```
 
 Sin autenticación, solo verificar que el servicio está online.
 
 ### 3. Status de integración (GET)
 ```
-GET https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/equipo-a/status
+GET <nuestra-url-publica>/api/v1/equipo-a/status
 ```
 
 Muestra estadísticas de la integración.

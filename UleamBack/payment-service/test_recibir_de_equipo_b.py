@@ -1,3 +1,4 @@
+import os
 # 🧪 Script de prueba: Simular webhook desde Equipo B
 # Este script simula que Equipo B nos envía un webhook con HMAC correcto
 
@@ -8,8 +9,8 @@ import requests
 from datetime import datetime
 
 # Configuración
-SECRET = "integracion-turismo-2026-uleam"
-URL_NUESTRO_WEBHOOK = "http://localhost:8001/api/v1/equipo-a/webhook"
+SECRET = os.environ["EQUIPO_A_SHARED_SECRET"]  # obligatoria: nunca incrustar el secreto
+URL_NUESTRO_WEBHOOK = os.getenv("PAYMENT_SERVICE_URL", "http://localhost:8024") + "/api/v1/equipo-a/webhook"
 
 def generar_firma_correcta(payload_dict):
     """

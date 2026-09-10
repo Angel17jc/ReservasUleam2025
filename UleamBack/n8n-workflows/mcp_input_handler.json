@@ -34,7 +34,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8002/api/chat/process",
+        "url": "http://ai-service:5000/api/chat/process",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

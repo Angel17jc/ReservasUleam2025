@@ -221,6 +221,11 @@ services:
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
       WEBSOCKET_SERVICE_URL: ${WEBSOCKET_SERVICE_URL}
       RESERVAS_INTERNAL_TOKEN: ${RESERVAS_INTERNAL_TOKEN}
+      # Integracion B2B con Equipo A (opcional: sin el secreto queda deshabilitada)
+      EQUIPO_A_SHARED_SECRET: ${EQUIPO_A_SHARED_SECRET}
+      EQUIPO_A_WEBHOOK_URL: ${EQUIPO_A_WEBHOOK_URL}
+      EQUIPO_A_HEALTH_URL: ${EQUIPO_A_HEALTH_URL}
+      EQUIPO_A_STATUS_URL: ${EQUIPO_A_STATUS_URL}
     ports:
       - "${PAYMENT_PORT}:8001"
     networks: [uleam-net]

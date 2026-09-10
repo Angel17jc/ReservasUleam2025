@@ -6,7 +6,7 @@ Write-Host "║  TEST 2: RECIBIR WEBHOOK DE EQUIPO A (Ellos → Nosotros) ║" -
 Write-Host "╚══════════════════════════════════════════════════════════╝`n" -ForegroundColor Cyan
 
 Write-Host "📥 Simulando webhook de Equipo A..." -ForegroundColor Yellow
-Write-Host "   Nuestro endpoint: https://heuristically-farraginous-marquitta.ngrok-free.dev/api/v1/equipo-a/webhook`n" -ForegroundColor Gray
+Write-Host "   Nuestro endpoint: <nuestra-url-publica>/api/v1/equipo-a/webhook`n" -ForegroundColor Gray
 
 # Payload de prueba (formato Equipo A)
 $payload = @{
@@ -27,7 +27,8 @@ Write-Host "📦 Payload a enviar:" -ForegroundColor Cyan
 $payload | ConvertFrom-Json | ConvertTo-Json -Depth 3 | Write-Host -ForegroundColor White
 
 # Generar firma HMAC-SHA256
-$secret = "integracion-turismo-2026-uleam"
+$secret = $env:EQUIPO_A_SHARED_SECRET
+if (-not $secret) { Write-Error "Falta la variable de entorno EQUIPO_A_SHARED_SECRET"; exit 1 }
 $hmac = New-Object System.Security.Cryptography.HMACSHA256
 $hmac.Key = [Text.Encoding]::UTF8.GetBytes($secret)
 $signature = [BitConverter]::ToString($hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes($payload))).Replace("-", "").ToLower()

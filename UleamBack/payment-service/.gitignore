@@ -99,3 +99,7 @@ equipo_*_credentials*.json
 *.pem
 *.key
 stripe_*.json
+
+# Registro del partner B2B: contiene el secreto compartido y URLs privadas
+equipo_a_*.json
+!equipo_a_*.example.json

@@ -49,7 +49,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/api/reports/daily",
+        "url": "http://rest-service:8000/api/reports/daily",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -73,7 +73,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Hacer ping a servicios críticos\nconst services = [\n  { name: 'REST', url: 'http://localhost:8000/api/health' },\n  { name: 'GraphQL', url: 'http://localhost:8080/graphql' },\n  { name: 'WebSocket', url: 'http://localhost:3001' },\n  { name: 'Payment', url: 'http://localhost:8001/health' }\n];\n\nreturn {\n  services: services,\n  trace_id: $input.body.trace_id\n};"
+        "jsCode": "// Hacer ping a servicios críticos\nconst services = [\n  { name: 'REST', url: 'http://rest-service:8000/api/health' },\n  { name: 'GraphQL', url: 'http://graphql-service:8081/graphql' },\n  { name: 'WebSocket', url: 'http://websocket-service:3001' },\n  { name: 'Payment', url: 'http://payment-service:8001/health' }\n];\n\nreturn {\n  services: services,\n  trace_id: $input.body.trace_id\n};"
       },
       "id": "uuid_prepare_health_check",
       "name": "Prepare Health Checks",

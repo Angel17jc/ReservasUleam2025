@@ -258,9 +258,9 @@ python -m app.main
 
 Una vez iniciado el servicio, accede a:
 
-- **Swagger UI**: http://localhost:8001/api/v1/docs
-- **ReDoc**: http://localhost:8001/api/v1/redoc
-- **OpenAPI JSON**: http://localhost:8001/api/v1/openapi.json
+- **Swagger UI**: http://localhost:8024/api/v1/docs
+- **ReDoc**: http://localhost:8024/api/v1/redoc
+- **OpenAPI JSON**: http://localhost:8024/api/v1/openapi.json
 
 ## 🔍 Endpoints Disponibles (Commit 1)
 
@@ -309,7 +309,7 @@ Información detallada de configuración.
 
 ### 1. Health Check
 ```powershell
-curl http://localhost:8001/api/v1/health
+curl http://localhost:8024/api/v1/health
 ```
 
 ### 2. Base de datos
