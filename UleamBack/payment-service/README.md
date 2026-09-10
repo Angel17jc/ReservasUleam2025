@@ -93,8 +93,7 @@ payment-service/
 │   └── test_partner_webhooks.py # Webhook tests (12) ✅ NEW
 ├── alembic/                 # Database migrations ✅
 ├── docs/                    # Documentation ✅
-│   ├── PILAR_2_COMPLETE.md  # Implementation summary ✅ NEW
-│   └── B2B_INTEGRATION_GUIDE.md # Partner guide ✅ NEW
+│   └── B2B_INTEGRATION_GUIDE.md # Partner guide ✅
 ├── requirements.txt         ✅
 ├── .env.example            ✅
 └── README.md

@@ -603,7 +603,6 @@ curl -X POST http://localhost:8001/api/v1/partners/webhook \
 - [OpenAPI Documentation](http://localhost:8001/docs)
 - [HMAC-SHA256 Specification](https://datatracker.ietf.org/doc/html/rfc2104)
 - [Webhook Security Best Practices](https://webhooks.fyi/security/hmac)
-- [PILAR_2_COMPLETE.md](./PILAR_2_COMPLETE.md) - Documentación completa
 
 ---
 
